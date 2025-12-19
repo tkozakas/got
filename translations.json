@@ -65,6 +65,7 @@
     "gpt_memory_stats": "\n\nMessages: %d\nCharacters: %d",
     "gpt_memory_empty": "No conversation history.",
     "gpt_memory_no_redis": "Memory not available.",
+    "gpt_memory_caption": "Chat History",
     "gpt_model_set": "Model switched to %s",
     "gpt_model_invalid": "Invalid model. Available models:\n"
   },
@@ -134,6 +135,7 @@
     "gpt_memory_stats": "\n\nСообщений: %d\nСимволов: %d",
     "gpt_memory_empty": "История разговора пуста.",
     "gpt_memory_no_redis": "Память недоступна.",
+    "gpt_memory_caption": "История чата",
     "gpt_model_set": "Модель изменена на %s",
     "gpt_model_invalid": "Неверная модель. Доступные модели:\n"
   },
@@ -203,6 +205,7 @@
     "gpt_memory_stats": "\n\nŽinučių: %d\nSimbolių: %d",
     "gpt_memory_empty": "Pokalbių istorijos nėra.",
     "gpt_memory_no_redis": "Atmintis nepasiekiama.",
+    "gpt_memory_caption": "Pokalbių istorija",
     "gpt_model_set": "Modelis pakeistas į %s",
     "gpt_model_invalid": "Neteisingas modelis. Galimi modeliai:\n"
   },
@@ -272,6 +275,7 @@
     "gpt_memory_stats": "\n\nメッセージ数: %d\n文字数: %d",
     "gpt_memory_empty": "会話履歴がありません。",
     "gpt_memory_no_redis": "メモリが利用できません。",
+    "gpt_memory_caption": "チャット履歴",
     "gpt_model_set": "モデルを%sに切り替えました",
     "gpt_model_invalid": "無効なモデルです。利用可能なモデル:\n"
   }

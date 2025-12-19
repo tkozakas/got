@@ -899,3 +899,42 @@ func TestFormatPromptWithUsername(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatHistoryAsText(t *testing.T) {
+	tests := []struct {
+		name    string
+		history []groq.Message
+		want    string
+	}{
+		{
+			name:    "emptyHistory",
+			history: []groq.Message{},
+			want:    "",
+		},
+		{
+			name: "singleMessage",
+			history: []groq.Message{
+				{Role: "user", Content: "Hello"},
+			},
+			want: "user: Hello\n",
+		},
+		{
+			name: "multipleMessages",
+			history: []groq.Message{
+				{Role: "user", Content: "Hello"},
+				{Role: "assistant", Content: "Hi there!"},
+				{Role: "user", Content: "How are you?"},
+			},
+			want: "user: Hello\nassistant: Hi there!\nuser: How are you?\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatHistoryAsText(tt.history)
+			if got != tt.want {
+				t.Errorf("formatHistoryAsText() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

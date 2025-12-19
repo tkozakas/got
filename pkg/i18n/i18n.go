@@ -85,6 +85,7 @@ const (
 	KeyGptMemoryStats   Key = "gpt_memory_stats"
 	KeyGptMemoryEmpty   Key = "gpt_memory_empty"
 	KeyGptMemoryNoRedis Key = "gpt_memory_no_redis"
+	KeyGptMemoryCaption Key = "gpt_memory_caption"
 	KeyGptModelSet      Key = "gpt_model_set"
 	KeyGptModelInvalid  Key = "gpt_model_invalid"
 )

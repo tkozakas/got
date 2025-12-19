@@ -521,13 +521,24 @@ func (h *BotHandlers) handleGPTMemory(ctx context.Context, chatID int64) error {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptMemoryEmpty))
 	}
 
-	totalChars := 0
-	for _, msg := range history {
-		totalChars += len(msg.Content)
-	}
+	_ = h.client.SendChatAction(chatID, ActionUploadDocument)
 
-	msg := h.t.Get(i18n.KeyGptMemoryHeader) + fmt.Sprintf(h.t.Get(i18n.KeyGptMemoryStats), len(history), totalChars)
-	return h.client.SendMessage(chatID, msg)
+	content := formatHistoryAsText(history)
+	filename := fmt.Sprintf("chat_history_%d.txt", chatID)
+	caption := h.t.Get(i18n.KeyGptMemoryCaption)
+
+	return h.client.SendDocument(chatID, []byte(content), filename, caption)
+}
+
+func formatHistoryAsText(history []groq.Message) string {
+	var sb strings.Builder
+	for _, msg := range history {
+		sb.WriteString(msg.Role)
+		sb.WriteString(": ")
+		sb.WriteString(msg.Content)
+		sb.WriteString("\n")
+	}
+	return sb.String()
 }
 
 func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []string) error {

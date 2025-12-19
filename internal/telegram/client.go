@@ -17,6 +17,7 @@ const (
 	sendPhotoCMD      = "/sendPhoto"
 	sendStickerCMD    = "/sendSticker"
 	sendVoiceCMD      = "/sendVoice"
+	sendDocumentCMD   = "/sendDocument"
 	sendAnimationCMD  = "/sendAnimation"
 	sendMediaGroupCMD = "/sendMediaGroup"
 	sendChatActionCMD = "/sendChatAction"
@@ -169,6 +170,14 @@ func (c *Client) SendChatAction(chatID int64, action string) error {
 }
 
 func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) error {
+	return c.sendMultipartFile(chatID, sendVoiceCMD, "voice", audioData, filename, "")
+}
+
+func (c *Client) SendDocument(chatID int64, fileData []byte, filename string, caption string) error {
+	return c.sendMultipartFile(chatID, sendDocumentCMD, "document", fileData, filename, caption)
+}
+
+func (c *Client) sendMultipartFile(chatID int64, endpoint string, fieldName string, fileData []byte, filename string, caption string) error {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -176,12 +185,18 @@ func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) erro
 		return err
 	}
 
-	part, err := writer.CreateFormFile("voice", filename)
+	if caption != "" {
+		if err := writer.WriteField("caption", caption); err != nil {
+			return err
+		}
+	}
+
+	part, err := writer.CreateFormFile(fieldName, filename)
 	if err != nil {
 		return err
 	}
 
-	if _, err := part.Write(audioData); err != nil {
+	if _, err := part.Write(fileData); err != nil {
 		return err
 	}
 
@@ -190,7 +205,7 @@ func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) erro
 	}
 
 	resp, err := c.httpClient.Post(
-		c.baseURL+sendVoiceCMD,
+		c.baseURL+endpoint,
 		writer.FormDataContentType(),
 		&buf,
 	)
@@ -200,7 +215,7 @@ func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) erro
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to send voice: %s", resp.Status)
+		return fmt.Errorf("failed to send %s: %s", fieldName, resp.Status)
 	}
 
 	return nil
