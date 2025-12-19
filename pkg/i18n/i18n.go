@@ -46,12 +46,15 @@ const (
 	KeyReminderNotify    Key = "reminder_notify"
 
 	KeyCmdStart   Key = "cmd_start"
+	KeyCmdHelp    Key = "cmd_help"
 	KeyCmdGpt     Key = "cmd_gpt"
 	KeyCmdRemind  Key = "cmd_remind"
 	KeyCmdMeme    Key = "cmd_meme"
 	KeyCmdSticker Key = "cmd_sticker"
 	KeyCmdFact    Key = "cmd_fact"
 	KeyCmdStats   Key = "cmd_stats"
+
+	KeyHelpHeader Key = "help_header"
 
 	KeyStatsAlias        Key = "stats_alias"
 	KeyStatsNoStats      Key = "stats_no_stats"
@@ -85,6 +88,14 @@ func New(lang string) *Translator {
 		lang:         lang,
 		translations: translations,
 		fallback:     all[defaultLang],
+	}
+}
+
+func NewWithTranslations(lang string, translations map[string]string) *Translator {
+	return &Translator{
+		lang:         lang,
+		translations: translations,
+		fallback:     translations,
 	}
 }
 

@@ -57,6 +57,7 @@ func main() {
 	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator)
 
 	router.Register("start", telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
+	router.Register("help", telegram.WithRecover(telegram.WithLogging(handlers.HandleHelp)))
 	router.Register("gpt", telegram.WithRecover(telegram.WithLogging(handlers.HandleGPT)))
 	router.Register("remind", telegram.WithRecover(telegram.WithLogging(handlers.HandleRemind)))
 	router.Register("meme", telegram.WithRecover(telegram.WithLogging(handlers.HandleMeme)))
@@ -151,6 +152,7 @@ func checkReminders(ctx context.Context, svc *app.Service, client *telegram.Clie
 func registerBotCommands(client *telegram.Client, t *i18n.Translator) {
 	commands := []telegram.BotCommand{
 		{Command: "start", Description: t.Get(i18n.KeyCmdStart)},
+		{Command: "help", Description: t.Get(i18n.KeyCmdHelp)},
 		{Command: "gpt", Description: t.Get(i18n.KeyCmdGpt)},
 		{Command: "remind", Description: t.Get(i18n.KeyCmdRemind)},
 		{Command: "meme", Description: t.Get(i18n.KeyCmdMeme)},

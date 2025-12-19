@@ -65,6 +65,32 @@ func (h *BotHandlers) HandleStart(ctx context.Context, update *Update) error {
 	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyWelcome))
 }
 
+func (h *BotHandlers) HandleHelp(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+
+	commands := []struct {
+		cmd  string
+		desc i18n.Key
+	}{
+		{"start", i18n.KeyCmdStart},
+		{"help", i18n.KeyCmdHelp},
+		{"gpt", i18n.KeyCmdGpt},
+		{"remind", i18n.KeyCmdRemind},
+		{"meme", i18n.KeyCmdMeme},
+		{"sticker", i18n.KeyCmdSticker},
+		{"fact", i18n.KeyCmdFact},
+		{"stats", i18n.KeyCmdStats},
+	}
+
+	var sb strings.Builder
+	sb.WriteString(h.t.Get(i18n.KeyHelpHeader))
+	for _, c := range commands {
+		sb.WriteString(fmt.Sprintf("/%s — %s\n", c.cmd, h.t.Get(c.desc)))
+	}
+
+	return h.client.SendMessage(chatID, sb.String())
+}
+
 func (h *BotHandlers) HandleFact(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
 	args := strings.TrimSpace(update.Message.CommandArguments())
