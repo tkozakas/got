@@ -37,16 +37,22 @@ jobs:
         run: go test -v ./...
 
   docker-build:
-    name: Docker Build
+    name: Docker Build (${{ matrix.platform }})
     needs: lint-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,15 +64,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Prepare platform tag
+        id: prep
+        run: echo "tag=${platform//\//-}" >> $GITHUB_OUTPUT
+        env:
+          platform: ${{ matrix.platform }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository }}:${{ steps.prep.outputs.tag }}
+
+  docker-manifest:
+    name: Create Multi-arch Manifest
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest
+        run: |
+          docker manifest create ghcr.io/${{ github.repository }}:latest \
+            ghcr.io/${{ github.repository }}:linux-amd64 \
+            ghcr.io/${{ github.repository }}:linux-arm64
+          docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            ghcr.io/${{ github.repository }}:linux-amd64 \
+            ghcr.io/${{ github.repository }}:linux-arm64
+          docker manifest push ghcr.io/${{ github.repository }}:latest
+          docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
