@@ -23,6 +23,7 @@ const (
 	SubCommandList   SubCommand = "list"
 	SubCommandAdd    SubCommand = "add"
 	SubCommandRemove SubCommand = "remove"
+	SubCommandDelete SubCommand = "delete"
 	SubCommandModel  SubCommand = "model"
 	SubCommandClear  SubCommand = "clear"
 	SubCommandAll    SubCommand = "all"
@@ -137,6 +138,16 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 		}
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerAdded))
 
+	case SubCommandRemove:
+		if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.Sticker == nil {
+			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerRemoveUsage))
+		}
+		fileID := update.Message.ReplyToMessage.Sticker.FileID
+		if err := h.service.RemoveSticker(ctx, fileID, chatID); err != nil {
+			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+		}
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerRemoved))
+
 	case SubCommandList:
 		stickers, err := h.service.ListStickers(ctx, chatID)
 		if err != nil {
@@ -159,7 +170,7 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
 	args := strings.TrimSpace(update.Message.CommandArguments())
-	parts := strings.SplitN(args, " ", 2)
+	parts := strings.Fields(args)
 
 	if len(parts) > 0 {
 		switch SubCommand(parts[0]) {
@@ -190,22 +201,56 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 		}
 	}
 
-	sub, err := h.service.GetRandomSubreddit(ctx, chatID)
-	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeySubredditError))
+	// Parse count and optional subreddit from args
+	count := 1
+	var explicitSubreddit string
+
+	if len(parts) > 0 {
+		// Check if first arg is a number (count)
+		if n, err := strconv.Atoi(parts[0]); err == nil {
+			if n < 1 || n > 5 {
+				return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeCountInvalid))
+			}
+			count = n
+			// Check for optional subreddit as second arg
+			if len(parts) > 1 {
+				explicitSubreddit = parts[1]
+			}
+		} else {
+			// First arg is not a number, treat it as subreddit name
+			explicitSubreddit = parts[0]
+		}
 	}
 
-	subName := defaultSubreddit
-	if sub != nil {
-		subName = sub.Name
+	// Determine which subreddit to use
+	var subName string
+	if explicitSubreddit != "" {
+		subName = explicitSubreddit
+	} else {
+		sub, err := h.service.GetRandomSubreddit(ctx, chatID)
+		if err != nil {
+			return h.client.SendMessage(chatID, h.t.Get(i18n.KeySubredditError))
+		}
+		if sub != nil {
+			subName = sub.Name
+		} else {
+			subName = defaultSubreddit
+		}
 	}
 
-	memes, err := h.fetchMemes(ctx, subName, 1)
+	memes, err := h.fetchMemes(ctx, subName, count)
 	if err != nil || len(memes) == 0 {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeError)+subName)
 	}
 
-	return h.client.SendPhoto(chatID, memes[0].URL, memes[0].Title)
+	// Send each meme as a separate photo
+	for _, meme := range memes {
+		if err := h.client.SendPhoto(chatID, meme.URL, meme.Title); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
@@ -243,39 +288,75 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
 	args := update.Message.CommandArguments()
+	parts := strings.SplitN(args, " ", 2)
 
-	if SubCommand(args) == SubCommandList {
-		reminders, err := h.service.GetPendingReminders(ctx, chatID)
-		if err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindListError))
-		}
-		if len(reminders) == 0 {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindNoPending))
-		}
-		var sb strings.Builder
-		sb.WriteString(h.t.Get(i18n.KeyRemindHeader))
-		for _, r := range reminders {
-			sb.WriteString(fmt.Sprintf(h.t.Get(i18n.KeyRemindFormat), r.Message, r.RemindAt.Format(time.RFC822)))
-		}
-		return h.client.SendMessage(chatID, sb.String())
+	if len(parts) == 0 {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindUsage))
 	}
 
-	parts := strings.SplitN(args, " ", 2)
+	switch SubCommand(parts[0]) {
+	case SubCommandList:
+		return h.handleRemindList(ctx, chatID)
+	case SubCommandDelete:
+		return h.handleRemindDelete(ctx, chatID, parts)
+	default:
+		return h.handleRemindAdd(ctx, chatID, update.Message.From.ID, parts)
+	}
+}
+
+func (h *BotHandlers) handleRemindList(ctx context.Context, chatID int64) error {
+	reminders, err := h.service.GetPendingReminders(ctx, chatID)
+	if err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindListError))
+	}
+	if len(reminders) == 0 {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindNoPending))
+	}
+
+	return h.client.SendMessage(chatID, h.formatReminders(reminders))
+}
+
+func (h *BotHandlers) handleRemindDelete(ctx context.Context, chatID int64, parts []string) error {
+	if len(parts) < 2 {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleteUsage))
+	}
+
+	reminderID, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleteUsage))
+	}
+
+	if err := h.service.DeleteReminder(ctx, reminderID, chatID); err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleteError))
+	}
+
+	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleted))
+}
+
+func (h *BotHandlers) handleRemindAdd(ctx context.Context, chatID int64, userID int64, parts []string) error {
 	if len(parts) < 2 {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindUsage))
 	}
 
-	duration, err := time.ParseDuration(parts[0])
+	duration, err := ParseDuration(parts[0])
 	if err != nil {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindInvalid))
 	}
 
-	err = h.service.AddReminder(ctx, chatID, update.Message.From.ID, parts[1], duration)
-	if err != nil {
+	if err := h.service.AddReminder(ctx, chatID, userID, parts[1], duration); err != nil {
 		return h.client.SendMessage(chatID, fmt.Sprintf("Error: %v", err))
 	}
 
 	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyRemindSuccess), duration))
+}
+
+func (h *BotHandlers) formatReminders(reminders []*model.Reminder) string {
+	var sb strings.Builder
+	sb.WriteString(h.t.Get(i18n.KeyRemindHeader))
+	for _, r := range reminders {
+		sb.WriteString(fmt.Sprintf(h.t.Get(i18n.KeyRemindFormat), r.ReminderID, r.Message, r.RemindAt.Format(time.RFC822)))
+	}
+	return sb.String()
 }
 
 func (h *BotHandlers) HandleStats(ctx context.Context, update *Update) error {

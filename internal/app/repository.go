@@ -23,6 +23,7 @@ type ReminderRepository interface {
 	ListPending(ctx context.Context) ([]*model.Reminder, error)
 	MarkSent(ctx context.Context, reminderID int64) error
 	ListByChat(ctx context.Context, chatID int64) ([]*model.Reminder, error)
+	Delete(ctx context.Context, reminderID int64, chatID int64) error
 }
 
 type FactRepository interface {
@@ -35,6 +36,7 @@ type StickerRepository interface {
 	Save(ctx context.Context, sticker *model.Sticker) error
 	GetRandomByChat(ctx context.Context, chatID int64) (*model.Sticker, error)
 	ListByChat(ctx context.Context, chatID int64) ([]*model.Sticker, error)
+	Delete(ctx context.Context, fileID string, chatID int64) error
 }
 
 type SubredditRepository interface {

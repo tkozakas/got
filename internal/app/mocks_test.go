@@ -56,6 +56,7 @@ type MockReminderRepository struct {
 	ListPendingFunc func(ctx context.Context) ([]*model.Reminder, error)
 	MarkSentFunc    func(ctx context.Context, reminderID int64) error
 	ListByChatFunc  func(ctx context.Context, chatID int64) ([]*model.Reminder, error)
+	DeleteFunc      func(ctx context.Context, reminderID int64, chatID int64) error
 }
 
 func (m *MockReminderRepository) Save(ctx context.Context, reminder *model.Reminder) error {
@@ -69,6 +70,12 @@ func (m *MockReminderRepository) MarkSent(ctx context.Context, reminderID int64)
 }
 func (m *MockReminderRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Reminder, error) {
 	return m.ListByChatFunc(ctx, chatID)
+}
+func (m *MockReminderRepository) Delete(ctx context.Context, reminderID int64, chatID int64) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(ctx, reminderID, chatID)
+	}
+	return nil
 }
 
 type MockFactRepository struct {
@@ -97,6 +104,7 @@ type MockStickerRepository struct {
 	SaveFunc            func(ctx context.Context, sticker *model.Sticker) error
 	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Sticker, error)
 	ListByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Sticker, error)
+	DeleteFunc          func(ctx context.Context, fileID string, chatID int64) error
 }
 
 func (m *MockStickerRepository) Save(ctx context.Context, sticker *model.Sticker) error {
@@ -113,6 +121,12 @@ func (m *MockStickerRepository) ListByChat(ctx context.Context, chatID int64) ([
 		return m.ListByChatFunc(ctx, chatID)
 	}
 	return nil, nil
+}
+func (m *MockStickerRepository) Delete(ctx context.Context, fileID string, chatID int64) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(ctx, fileID, chatID)
+	}
+	return nil
 }
 
 type MockSubredditRepository struct {

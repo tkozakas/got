@@ -55,3 +55,7 @@ func (s *Service) CheckReminders(ctx context.Context) ([]*model.Reminder, error)
 
 	return pending, nil
 }
+
+func (s *Service) DeleteReminder(ctx context.Context, reminderID int64, chatID int64) error {
+	return s.reminders.Delete(ctx, reminderID, chatID)
+}

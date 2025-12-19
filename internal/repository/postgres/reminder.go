@@ -2,10 +2,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"got/internal/app/model"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrReminderNotFound = errors.New("reminder not found")
 
 type ReminderRepository struct {
 	pool *pgxpool.Pool
@@ -113,4 +116,16 @@ func (r *ReminderRepository) MarkSent(ctx context.Context, reminderID int64) err
 	query := `UPDATE reminders SET sent = true WHERE reminder_id = $1`
 	_, err := r.pool.Exec(ctx, query, reminderID)
 	return err
+}
+
+func (r *ReminderRepository) Delete(ctx context.Context, reminderID int64, chatID int64) error {
+	query := `DELETE FROM reminders WHERE reminder_id = $1 AND chat_id = $2`
+	result, err := r.pool.Exec(ctx, query, reminderID, chatID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrReminderNotFound
+	}
+	return nil
 }

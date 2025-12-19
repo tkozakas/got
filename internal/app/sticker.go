@@ -29,3 +29,7 @@ func (s *Service) GetRandomSticker(ctx context.Context, chatID int64) (*model.St
 func (s *Service) ListStickers(ctx context.Context, chatID int64) ([]*model.Sticker, error) {
 	return s.stickers.ListByChat(ctx, chatID)
 }
+
+func (s *Service) RemoveSticker(ctx context.Context, fileID string, chatID int64) error {
+	return s.stickers.Delete(ctx, fileID, chatID)
+}

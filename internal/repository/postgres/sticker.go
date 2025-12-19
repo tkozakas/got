@@ -81,3 +81,9 @@ func (r *StickerRepository) ListByChat(ctx context.Context, chatID int64) ([]*mo
 
 	return stickers, nil
 }
+
+func (r *StickerRepository) Delete(ctx context.Context, fileID string, chatID int64) error {
+	query := `DELETE FROM stickers WHERE file_id = $1 AND chat_id = $2`
+	_, err := r.pool.Exec(ctx, query, fileID, chatID)
+	return err
+}
