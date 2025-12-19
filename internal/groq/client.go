@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 )
 
 const (
 	baseURL        = "https://api.groq.com/openai/v1/chat/completions"
+	modelsURL      = "https://api.groq.com/openai/v1/models"
 	defaultTimeout = 30 * time.Second
 	defaultModel   = "llama-3.3-70b-versatile"
 	roleSystem     = "system"
@@ -24,6 +27,7 @@ type Client struct {
 	httpClient *http.Client
 	model      string
 	baseURL    string
+	modelsURL  string
 }
 
 type Message struct {
@@ -51,14 +55,24 @@ type Error struct {
 	Type    string `json:"type"`
 }
 
+type ModelsResponse struct {
+	Data []ModelInfo `json:"data"`
+}
+
+type ModelInfo struct {
+	ID      string `json:"id"`
+	OwnedBy string `json:"owned_by"`
+}
+
 func NewClient(apiKey string) *Client {
 	return &Client{
 		apiKey: apiKey,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
-		model:   defaultModel,
-		baseURL: baseURL,
+		model:     defaultModel,
+		baseURL:   baseURL,
+		modelsURL: modelsURL,
 	}
 }
 
@@ -107,6 +121,64 @@ func (c *Client) ListModels() []string {
 		"mixtral-8x7b-32768",
 		"gemma2-9b-it",
 	}
+}
+
+func (c *Client) FetchModels(ctx context.Context) ([]string, error) {
+	data, err := c.doGetRequest(ctx, c.modelsURL)
+	if err != nil {
+		return nil, err
+	}
+	return c.parseModelsResponse(data)
+}
+
+func (c *Client) parseModelsResponse(data []byte) ([]string, error) {
+	var resp ModelsResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse models response: %w", err)
+	}
+	return c.filterChatModels(resp.Data), nil
+}
+
+func (c *Client) filterChatModels(models []ModelInfo) []string {
+	var result []string
+	for _, m := range models {
+		if c.isChatModel(m.ID) {
+			result = append(result, m.ID)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
+func (c *Client) isChatModel(modelID string) bool {
+	lower := strings.ToLower(modelID)
+	return !strings.Contains(lower, "whisper")
+}
+
+func (c *Client) doGetRequest(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("api error: %s", string(body))
+	}
+
+	return body, nil
 }
 
 func (c *Client) SetModel(model string) error {

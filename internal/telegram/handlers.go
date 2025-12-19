@@ -451,7 +451,7 @@ func (h *BotHandlers) handleStatsAll(ctx context.Context, chatID int64) error {
 
 func (h *BotHandlers) handleGPTModels(ctx context.Context, chatID int64) error {
 	currentModel := h.getChatModel(ctx, chatID)
-	models := h.gpt.ListModels()
+	models := h.fetchModelsWithFallback(ctx)
 
 	var sb strings.Builder
 	sb.WriteString(h.t.Get(i18n.KeyGptModelsHeader))
@@ -463,6 +463,14 @@ func (h *BotHandlers) handleGPTModels(ctx context.Context, chatID int64) error {
 		sb.WriteString(prefix + m + "\n")
 	}
 	return h.client.SendMessage(chatID, sb.String())
+}
+
+func (h *BotHandlers) fetchModelsWithFallback(ctx context.Context) []string {
+	models, err := h.gpt.FetchModels(ctx)
+	if err != nil || len(models) == 0 {
+		return h.gpt.ListModels()
+	}
+	return models
 }
 
 func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, modelName string) error {

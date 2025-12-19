@@ -264,3 +264,95 @@ func containsModel(models []string, target string) bool {
 	}
 	return false
 }
+
+func TestClientFetchModels(t *testing.T) {
+	tests := []struct {
+		name       string
+		response   ModelsResponse
+		statusCode int
+		wantErr    bool
+		wantLen    int
+	}{
+		{
+			name: "successfulResponse",
+			response: ModelsResponse{
+				Data: []ModelInfo{
+					{ID: "llama-3.3-70b-versatile"},
+					{ID: "mixtral-8x7b-32768"},
+				},
+			},
+			statusCode: http.StatusOK,
+			wantErr:    false,
+			wantLen:    2,
+		},
+		{
+			name: "filtersWhisperModels",
+			response: ModelsResponse{
+				Data: []ModelInfo{
+					{ID: "llama-3.3-70b-versatile"},
+					{ID: "whisper-large-v3"},
+					{ID: "whisper-large-v3-turbo"},
+				},
+			},
+			statusCode: http.StatusOK,
+			wantErr:    false,
+			wantLen:    1,
+		},
+		{
+			name:       "httpError",
+			response:   ModelsResponse{},
+			statusCode: http.StatusInternalServerError,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "Bearer "+testAPIKey {
+					t.Error("missing authorization header")
+				}
+				w.WriteHeader(tt.statusCode)
+				json.NewEncoder(w).Encode(tt.response)
+			})
+
+			client := newTestGroqClientWithModelsURL(server.URL)
+			models, err := client.FetchModels(context.Background())
+
+			assertError(t, err, tt.wantErr)
+
+			if !tt.wantErr && len(models) != tt.wantLen {
+				t.Errorf("got %d models, want %d", len(models), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestClientFetchModelsSorted(t *testing.T) {
+	response := ModelsResponse{
+		Data: []ModelInfo{
+			{ID: "zebra-model"},
+			{ID: "alpha-model"},
+			{ID: "beta-model"},
+		},
+	}
+
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(response)
+	})
+
+	client := newTestGroqClientWithModelsURL(server.URL)
+	models, err := client.FetchModels(context.Background())
+
+	assertNoError(t, err)
+
+	if models[0] != "alpha-model" {
+		t.Errorf("models not sorted, first = %s, want alpha-model", models[0])
+	}
+}
+
+func newTestGroqClientWithModelsURL(serverURL string) *Client {
+	client := NewClient(testAPIKey)
+	client.modelsURL = serverURL
+	return client
+}
