@@ -26,10 +26,22 @@ const (
 	SubCommandDelete SubCommand = "delete"
 	SubCommandModel  SubCommand = "model"
 	SubCommandClear  SubCommand = "clear"
+	SubCommandForget SubCommand = "forget"
 	SubCommandAll    SubCommand = "all"
 	SubCommandStats  SubCommand = "stats"
 	SubCommandMemory SubCommand = "memory"
 	SubCommandImage  SubCommand = "image"
+)
+
+const (
+	ActionTyping          = "typing"
+	ActionUploadPhoto     = "upload_photo"
+	ActionRecordVoice     = "record_voice"
+	ActionUploadVoice     = "upload_voice"
+	ActionUploadDocument  = "upload_document"
+	ActionUploadVideo     = "upload_video"
+	ActionRecordVideoNote = "record_video_note"
+	ActionUploadVideoNote = "upload_video_note"
 )
 
 type BotHandlers struct {
@@ -238,19 +250,14 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 		}
 	}
 
+	_ = h.client.SendChatAction(chatID, ActionUploadPhoto)
+
 	memes, err := h.fetchMemes(ctx, subName, count)
 	if err != nil || len(memes) == 0 {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeError)+subName)
 	}
 
-	// Send each meme as a separate photo
-	for _, meme := range memes {
-		if err := h.client.SendPhoto(chatID, meme.URL, meme.Title); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return h.sendMemes(chatID, memes)
 }
 
 func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
@@ -274,7 +281,7 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 			return h.handleGPTSetModel(chatID, strings.TrimSpace(parts[1]))
 		}
 		return h.handleGPTModels(chatID)
-	case SubCommandClear:
+	case SubCommandClear, SubCommandForget:
 		return h.handleGPTClear(ctx, chatID)
 	case SubCommandMemory:
 		return h.handleGPTMemory(ctx, chatID)
@@ -493,10 +500,14 @@ func (h *BotHandlers) handleGPTImage(chatID int64, parts []string) error {
 	prompt := strings.TrimSpace(parts[1])
 	imageURL := fmt.Sprintf("https://image.pollinations.ai/prompt/%s", url.QueryEscape(prompt))
 
+	_ = h.client.SendChatAction(chatID, ActionUploadPhoto)
+
 	return h.client.SendPhoto(chatID, imageURL, prompt)
 }
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, prompt string) error {
+	_ = h.client.SendChatAction(chatID, ActionTyping)
+
 	var history []groq.Message
 	if h.cache != nil {
 		history, _ = h.cache.GetHistory(ctx, chatID)
@@ -593,10 +604,59 @@ func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
 	}
 
+	_ = h.client.SendChatAction(chatID, ActionRecordVoice)
+
 	audioData, err := h.tts.GenerateSpeech(ctx, text)
 	if err != nil {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
 	}
 
 	return h.client.SendVoice(chatID, audioData, "speech.mp3")
+}
+
+func (h *BotHandlers) sendMemes(chatID int64, memes []model.RedditMeme) error {
+	var photos []model.RedditMeme
+	var gifs []model.RedditMeme
+
+	for _, meme := range memes {
+		if isAnimatedURL(meme.URL) {
+			gifs = append(gifs, meme)
+		} else {
+			photos = append(photos, meme)
+		}
+	}
+
+	if len(photos) > 1 {
+		media := make([]InputMediaPhoto, len(photos))
+		for i, meme := range photos {
+			media[i] = InputMediaPhoto{
+				Type:    "photo",
+				Media:   meme.URL,
+				Caption: meme.Title,
+			}
+		}
+		if err := h.client.SendMediaGroup(chatID, media); err != nil {
+			return err
+		}
+	} else if len(photos) == 1 {
+		if err := h.client.SendPhoto(chatID, photos[0].URL, photos[0].Title); err != nil {
+			return err
+		}
+	}
+
+	for _, gif := range gifs {
+		if err := h.client.SendAnimation(chatID, gif.URL, gif.Title); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func isAnimatedURL(url string) bool {
+	lowerURL := strings.ToLower(url)
+	return strings.HasSuffix(lowerURL, ".gif") ||
+		strings.Contains(lowerURL, ".gif?") ||
+		strings.HasSuffix(lowerURL, ".mp4") ||
+		strings.Contains(lowerURL, ".mp4?")
 }

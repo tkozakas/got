@@ -11,13 +11,16 @@ import (
 )
 
 const (
-	defaultTimeout   = 30 * time.Second
-	getUpdatesCMD    = "/getUpdates"
-	sendMessageCMD   = "/sendMessage"
-	sendPhotoCMD     = "/sendPhoto"
-	sendStickerCMD   = "/sendSticker"
-	sendVoiceCMD     = "/sendVoice"
-	setMyCommandsCMD = "/setMyCommands"
+	defaultTimeout    = 30 * time.Second
+	getUpdatesCMD     = "/getUpdates"
+	sendMessageCMD    = "/sendMessage"
+	sendPhotoCMD      = "/sendPhoto"
+	sendStickerCMD    = "/sendSticker"
+	sendVoiceCMD      = "/sendVoice"
+	sendAnimationCMD  = "/sendAnimation"
+	sendMediaGroupCMD = "/sendMediaGroup"
+	sendChatActionCMD = "/sendChatAction"
+	setMyCommandsCMD  = "/setMyCommands"
 )
 
 type Client struct {
@@ -108,6 +111,61 @@ func (c *Client) SendSticker(chatID int64, stickerID string) error {
 	}
 
 	return c.postJSON(sendStickerCMD, data)
+}
+
+type InputMediaPhoto struct {
+	Type    string `json:"type"`
+	Media   string `json:"media"`
+	Caption string `json:"caption,omitempty"`
+}
+
+type InputMediaAnimation struct {
+	Type    string `json:"type"`
+	Media   string `json:"media"`
+	Caption string `json:"caption,omitempty"`
+}
+
+func (c *Client) SendMediaGroup(chatID int64, media []InputMediaPhoto) error {
+	payload := map[string]any{
+		"chat_id": chatID,
+		"media":   media,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(sendMediaGroupCMD, data)
+}
+
+func (c *Client) SendAnimation(chatID int64, animationURL string, caption string) error {
+	payload := map[string]any{
+		"chat_id":   chatID,
+		"animation": animationURL,
+		"caption":   caption,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(sendAnimationCMD, data)
+}
+
+func (c *Client) SendChatAction(chatID int64, action string) error {
+	payload := map[string]any{
+		"chat_id": chatID,
+		"action":  action,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(sendChatActionCMD, data)
 }
 
 func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) error {
