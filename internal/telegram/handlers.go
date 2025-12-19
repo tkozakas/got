@@ -7,6 +7,7 @@ import (
 	"got/internal/app/model"
 	"got/internal/groq"
 	"got/internal/redis"
+	"got/internal/tts"
 	"got/pkg/i18n"
 	"strconv"
 	"strings"
@@ -33,15 +34,17 @@ type BotHandlers struct {
 	gpt     *groq.Client
 	cache   *redis.Client
 	t       *i18n.Translator
+	tts     *tts.Client
 }
 
-func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator) *BotHandlers {
+func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator, tts *tts.Client) *BotHandlers {
 	return &BotHandlers{
 		client:  client,
 		service: service,
 		gpt:     gpt,
 		cache:   cache,
 		t:       t,
+		tts:     tts,
 	}
 }
 
@@ -440,4 +443,24 @@ func (h *BotHandlers) aggregateStats(stats []*model.Stat) []*model.Stat {
 	}
 
 	return result
+}
+
+func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	text := update.Message.CommandArguments()
+
+	if text == "" {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsUsage))
+	}
+
+	if h.tts == nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
+	}
+
+	audioData, err := h.tts.GenerateSpeech(ctx, text)
+	if err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
+	}
+
+	return h.client.SendVoice(chatID, audioData, "speech.mp3")
 }

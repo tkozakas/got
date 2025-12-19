@@ -10,6 +10,7 @@ import (
 	"got/internal/repository/postgres"
 	"got/internal/scheduler"
 	"got/internal/telegram"
+	"got/internal/tts"
 	"got/pkg/config"
 	"got/pkg/i18n"
 	"log/slog"
@@ -53,8 +54,10 @@ func main() {
 		redisClient = redis.NewClient(cfg.RedisAddr)
 	}
 
+	ttsClient := tts.NewClient()
+
 	router := telegram.NewRouter()
-	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator)
+	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator, ttsClient)
 
 	router.Register("start", telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
 	router.Register("help", telegram.WithRecover(telegram.WithLogging(handlers.HandleHelp)))
@@ -64,6 +67,7 @@ func main() {
 	router.Register("sticker", telegram.WithRecover(telegram.WithLogging(handlers.HandleSticker)))
 	router.Register("fact", telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
 	router.Register("stats", telegram.WithRecover(telegram.WithLogging(handlers.HandleStats)))
+	router.Register("tts", telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
 
 	autoRegister := telegram.NewAutoRegisterMiddleware(svc, router)
 	bot := telegram.NewBot(client, autoRegister)
@@ -159,6 +163,7 @@ func registerBotCommands(client *telegram.Client, t *i18n.Translator) {
 		{Command: "sticker", Description: t.Get(i18n.KeyCmdSticker)},
 		{Command: "fact", Description: t.Get(i18n.KeyCmdFact)},
 		{Command: "stats", Description: t.Get(i18n.KeyCmdStats)},
+		{Command: "tts", Description: t.Get(i18n.KeyCmdTts)},
 	}
 
 	if err := client.SetMyCommands(commands); err != nil {

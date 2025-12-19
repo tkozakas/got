@@ -21,12 +21,15 @@ func newTestTranslator() *i18n.Translator {
 		"cmd_sticker":       "Get a random sticker",
 		"cmd_fact":          "Get a random fact",
 		"cmd_stats":         "Daily winner game",
+		"cmd_tts":           "Convert text to speech",
 		"welcome":           "Welcome! I am ready.",
 		"gpt_usage":         "Usage: /gpt <prompt>",
 		"gpt_no_key":        "GPT is not configured.",
 		"gpt_cleared":       "Conversation history cleared.",
 		"gpt_error":         "Failed to get AI response.",
 		"gpt_models_header": "Available models:\n",
+		"tts_usage":         "Usage: /tts <text to speak>",
+		"tts_error":         "Failed to generate speech.",
 	})
 }
 
@@ -195,5 +198,63 @@ func newTestServiceForHandlers() *app.Service {
 }
 
 func newTestBotHandlers(client *Client, svc *app.Service) *BotHandlers {
-	return NewBotHandlers(client, svc, nil, nil, newTestTranslator())
+	return NewBotHandlers(client, svc, nil, nil, newTestTranslator(), nil)
+}
+
+func TestHandleTTS_NoText(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/tts",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleTTS(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleTTS() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Usage:") {
+		t.Errorf("expected usage message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleTTS_NoTTSClient(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc) // TTS client is nil
+
+	update := &Update{
+		Message: &Message{
+			Text: "/tts Hello world",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleTTS(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleTTS() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Failed") {
+		t.Errorf("expected error message when TTS client is nil, got: %s", sentMessage)
+	}
 }

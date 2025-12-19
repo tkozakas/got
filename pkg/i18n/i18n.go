@@ -67,6 +67,10 @@ const (
 	KeyStatsAutoWinner   Key = "stats_auto_winner"
 	KeyStatsNoUsers      Key = "stats_no_users"
 	KeyStatsUsage        Key = "stats_usage"
+
+	KeyCmdTts   Key = "cmd_tts"
+	KeyTtsUsage Key = "tts_usage"
+	KeyTtsError Key = "tts_error"
 )
 
 type Translator struct {

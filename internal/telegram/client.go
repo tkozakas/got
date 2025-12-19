@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -15,6 +16,7 @@ const (
 	sendMessageCMD   = "/sendMessage"
 	sendPhotoCMD     = "/sendPhoto"
 	sendStickerCMD   = "/sendSticker"
+	sendVoiceCMD     = "/sendVoice"
 	setMyCommandsCMD = "/setMyCommands"
 )
 
@@ -106,6 +108,44 @@ func (c *Client) SendSticker(chatID int64, stickerID string) error {
 	}
 
 	return c.postJSON(sendStickerCMD, data)
+}
+
+func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) error {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	if err := writer.WriteField("chat_id", fmt.Sprintf("%d", chatID)); err != nil {
+		return err
+	}
+
+	part, err := writer.CreateFormFile("voice", filename)
+	if err != nil {
+		return err
+	}
+
+	if _, err := part.Write(audioData); err != nil {
+		return err
+	}
+
+	if err := writer.Close(); err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Post(
+		c.baseURL+sendVoiceCMD,
+		writer.FormDataContentType(),
+		&buf,
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send voice: %s", resp.Status)
+	}
+
+	return nil
 }
 
 func (c *Client) postJSON(endpoint string, data []byte) error {

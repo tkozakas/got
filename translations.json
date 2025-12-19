@@ -49,7 +49,10 @@
     "stats_winner_new": "🎉 Today's %s is %s!",
     "stats_auto_winner": "🎲 Daily roulette! Today's %s is %s!",
     "stats_no_users": "No users found in this chat.",
-    "stats_usage": "Usage: /stats or /stats all or /stats <year>"
+    "stats_usage": "Usage: /stats or /stats all or /stats <year>",
+    "cmd_tts": "Convert text to speech",
+    "tts_usage": "Usage: /tts <text to speak>",
+    "tts_error": "Failed to generate speech."
   },
   "ru": {
     "welcome": "Добро пожаловать! Я готов.",
@@ -101,7 +104,10 @@
     "stats_winner_new": "🎉 Сегодняшний %s — %s!",
     "stats_auto_winner": "🎲 Ежедневная рулетка! Сегодняшний %s — %s!",
     "stats_no_users": "В этом чате нет пользователей.",
-    "stats_usage": "Использование: /stats или /stats all или /stats <год>"
+    "stats_usage": "Использование: /stats или /stats all или /stats <год>",
+    "cmd_tts": "Преобразовать текст в речь",
+    "tts_usage": "Использование: /tts <текст для озвучивания>",
+    "tts_error": "Не удалось сгенерировать речь."
   },
   "lt": {
     "welcome": "Sveiki! Aš pasiruošęs.",
@@ -153,7 +159,10 @@
     "stats_winner_new": "🎉 Šiandienos %s yra %s!",
     "stats_auto_winner": "🎲 Dienos ruletė! Šiandienos %s yra %s!",
     "stats_no_users": "Šiame pokalbyje nėra vartotojų.",
-    "stats_usage": "Naudojimas: /stats arba /stats all arba /stats <metai>"
+    "stats_usage": "Naudojimas: /stats arba /stats all arba /stats <metai>",
+    "cmd_tts": "Paversti tekstą kalba",
+    "tts_usage": "Naudojimas: /tts <tekstas kalbėjimui>",
+    "tts_error": "Nepavyko sugeneruoti kalbos."
   },
   "ja": {
     "welcome": "ようこそ！準備完了です。",
@@ -205,6 +214,9 @@
     "stats_winner_new": "🎉 今日の%sは%s！",
     "stats_auto_winner": "🎲 デイリールーレット！今日の%sは%s！",
     "stats_no_users": "このチャットにはユーザーがいません。",
-    "stats_usage": "使用方法: /stats または /stats all または /stats <年>"
+    "stats_usage": "使用方法: /stats または /stats all または /stats <年>",
+    "cmd_tts": "テキストを音声に変換",
+    "tts_usage": "使用方法: /tts <読み上げるテキスト>",
+    "tts_error": "音声の生成に失敗しました。"
   }
 }
