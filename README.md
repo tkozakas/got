@@ -19,7 +19,6 @@ REDIS_ADDR=localhost:6379
 # Optional
 GROQ_API_KEY=your_groq_api_key
 ADMIN_PASS=your_secret_password
-ROULETTE_SENTENCES_PATH=roulette_sentences.json
 ```
 
 Run in production:
@@ -75,20 +74,10 @@ CMD_ADMIN=sudo        # Rename /admin to /sudo
 CMD_LANG=language     # Rename /lang to /language
 ```
 
-Other configuration:
-
-```bash
-ROULETTE_SENTENCES_PATH=custom_sentences.json  # Custom roulette animations
-```
-
 ## Admin Commands
 
-Admin commands allow you to manage the bot securely:
-
-1. **Login** - DM the bot privately with `/admin login <password>`
+1. **Login** - DM the bot with `/admin login <password>`
 2. **Use admin commands** - Once logged in, use `/admin reset` in any chat
-
-Sessions expire after 12 hours.
 
 ## API Keys
 
