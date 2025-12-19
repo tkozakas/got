@@ -70,6 +70,165 @@ func TestTranslatorFallback(t *testing.T) {
 	assertEqual(t, got, "nonexistent_key")
 }
 
+func TestNewWithTranslations(t *testing.T) {
+	tests := []struct {
+		name         string
+		lang         string
+		translations map[string]string
+		key          Key
+		want         string
+	}{
+		{
+			name: "simpleTranslation",
+			lang: "custom",
+			translations: map[string]string{
+				"welcome": "Custom Welcome",
+			},
+			key:  KeyWelcome,
+			want: "Custom Welcome",
+		},
+		{
+			name:         "emptyTranslations",
+			lang:         "empty",
+			translations: map[string]string{},
+			key:          KeyWelcome,
+			want:         "welcome",
+		},
+		{
+			name: "multipleTranslations",
+			lang: "multi",
+			translations: map[string]string{
+				"welcome":    "Hello",
+				"fact_error": "Error occurred",
+			},
+			key:  KeyFactError,
+			want: "Error occurred",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := NewWithTranslations(tt.lang, tt.translations)
+			got := tr.Get(tt.key)
+			assertEqual(t, got, tt.want)
+			assertEqual(t, tr.Lang(), tt.lang)
+		})
+	}
+}
+
+func TestGetFallbackToDefaultLanguage(t *testing.T) {
+	tests := []struct {
+		name         string
+		lang         string
+		translations map[string]string
+		fallback     map[string]string
+		key          Key
+		want         string
+	}{
+		{
+			name:         "fallbackWhenKeyMissingInPrimary",
+			lang:         "fr",
+			translations: map[string]string{},
+			fallback: map[string]string{
+				"welcome": "Welcome from fallback",
+			},
+			key:  KeyWelcome,
+			want: "Welcome from fallback",
+		},
+		{
+			name: "primaryOverridesFallback",
+			lang: "de",
+			translations: map[string]string{
+				"welcome": "Willkommen",
+			},
+			fallback: map[string]string{
+				"welcome": "Welcome from fallback",
+			},
+			key:  KeyWelcome,
+			want: "Willkommen",
+		},
+		{
+			name: "fallbackUsedForMissingKey",
+			lang: "es",
+			translations: map[string]string{
+				"fact_error": "Error de hecho",
+			},
+			fallback: map[string]string{
+				"welcome": "Welcome fallback",
+			},
+			key:  KeyWelcome,
+			want: "Welcome fallback",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := &Translator{
+				lang:         tt.lang,
+				translations: tt.translations,
+				fallback:     tt.fallback,
+			}
+			got := tr.Get(tt.key)
+			assertEqual(t, got, tt.want)
+		})
+	}
+}
+
+func TestGetReturnsKeyWhenNotFound(t *testing.T) {
+	tests := []struct {
+		name         string
+		translations map[string]string
+		fallback     map[string]string
+		key          Key
+		want         string
+	}{
+		{
+			name:         "emptyMaps",
+			translations: map[string]string{},
+			fallback:     map[string]string{},
+			key:          KeyWelcome,
+			want:         "welcome",
+		},
+		{
+			name: "keyNotInEitherMap",
+			translations: map[string]string{
+				"other_key": "other value",
+			},
+			fallback: map[string]string{
+				"another_key": "another value",
+			},
+			key:  KeyGptError,
+			want: "gpt_error",
+		},
+		{
+			name:         "nilMaps",
+			translations: nil,
+			fallback:     nil,
+			key:          KeyFactError,
+			want:         "fact_error",
+		},
+		{
+			name:         "customKeyNotFound",
+			translations: map[string]string{},
+			fallback:     map[string]string{},
+			key:          Key("custom_missing_key"),
+			want:         "custom_missing_key",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := &Translator{
+				lang:         "test",
+				translations: tt.translations,
+				fallback:     tt.fallback,
+			}
+			got := tr.Get(tt.key)
+			assertEqual(t, got, tt.want)
+		})
+	}
+}
+
 func TestTranslatorAllKeys(t *testing.T) {
 	setupTestTranslations(t)
 

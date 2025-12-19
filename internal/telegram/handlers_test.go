@@ -9,6 +9,7 @@ import (
 	"got/internal/app"
 	"got/internal/app/model"
 	"got/internal/groq"
+	"got/internal/redis"
 	"got/pkg/i18n"
 )
 
@@ -1427,5 +1428,120 @@ func TestBuildImageURL(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func newTestBotHandlersWithGPTAndCache(client *Client, svc *app.Service, gpt *groq.Client, cache *redis.Client) *BotHandlers {
+	return &BotHandlers{
+		client:  client,
+		service: svc,
+		gpt:     gpt,
+		cache:   cache,
+		t:       newTestTranslator(),
+		tts:     nil,
+	}
+}
+
+func TestHandleGPTMemoryNoRedis(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	gpt := groq.NewClient("test-key")
+	handlers := newTestBotHandlersWithGPT(client, svc, gpt) // cache is nil
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt memory",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "not available") {
+		t.Errorf("expected 'not available' message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleGPTMemoryEmpty(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	gpt := groq.NewClient("test-key")
+	// Use a redis client with invalid address - GetHistory will fail, triggering "No conversation history"
+	cache := redis.NewClient("invalid:9999")
+	handlers := newTestBotHandlersWithGPTAndCache(client, svc, gpt, cache)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt memory",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "No conversation history") {
+		t.Errorf("expected 'No conversation history' message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleGPTModels(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	gpt := groq.NewClient("test-key")
+	handlers := newTestBotHandlersWithGPT(client, svc, gpt)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt model",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Available models") {
+		t.Errorf("expected 'Available models' header, got: %s", sentMessage)
+	}
+
+	expectedModels := []string{
+		"llama-3.3-70b-versatile",
+		"llama-3.1-8b-instant",
+		"mixtral-8x7b-32768",
+		"gemma2-9b-it",
+	}
+	for _, model := range expectedModels {
+		if !strings.Contains(sentMessage, model) {
+			t.Errorf("expected model %q in response, got: %s", model, sentMessage)
+		}
 	}
 }
