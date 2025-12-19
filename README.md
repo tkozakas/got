@@ -7,6 +7,7 @@ Telegram bot written in Go.
 Install tools with [mise](https://mise.jdx.dev):
 ```bash
 mise install
+eval "$(mise activate bash)"  # or zsh
 ```
 
 Create `.env`:
