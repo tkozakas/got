@@ -10,5 +10,6 @@
 *.out
 coverage.out
 bin/
+bot
 dist/
 tmp/
