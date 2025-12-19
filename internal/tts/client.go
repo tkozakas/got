@@ -18,6 +18,7 @@ const (
 type Client struct {
 	httpClient *http.Client
 	voice      string
+	baseURL    string
 }
 
 func NewClient() *Client {
@@ -25,7 +26,8 @@ func NewClient() *Client {
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
-		voice: defaultVoice,
+		voice:   defaultVoice,
+		baseURL: baseURL,
 	}
 }
 
@@ -34,7 +36,7 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string) ([]byte, error
 	params.Set("voice", c.voice)
 	params.Set("text", text)
 
-	reqURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+	reqURL := fmt.Sprintf("%s?%s", c.baseURL, params.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
