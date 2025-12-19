@@ -819,12 +819,12 @@ func TestHandleGPTForget(t *testing.T) {
 		wantContains string
 	}{
 		{
-			name:         "ForgetClearsHistory",
+			name:         "forgetClearsHistory",
 			command:      "/gpt forget",
 			wantContains: "cleared",
 		},
 		{
-			name:         "ClearClearsHistory",
+			name:         "clearClearsHistory",
 			command:      "/gpt clear",
 			wantContains: "cleared",
 		},
@@ -858,6 +858,43 @@ func TestHandleGPTForget(t *testing.T) {
 
 			if !strings.Contains(strings.ToLower(sentMessage), tt.wantContains) {
 				t.Errorf("expected message containing %q, got: %s", tt.wantContains, sentMessage)
+			}
+		})
+	}
+}
+
+func TestFormatPromptWithUsername(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		prompt   string
+		want     string
+	}{
+		{
+			name:     "withUsername",
+			username: "john",
+			prompt:   "hello",
+			want:     "john: hello",
+		},
+		{
+			name:     "emptyUsername",
+			username: "",
+			prompt:   "hello",
+			want:     "hello",
+		},
+		{
+			name:     "whitespaceUsername",
+			username: "   ",
+			prompt:   "hello",
+			want:     "hello",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatPromptWithUsername(tt.username, tt.prompt)
+			if got != tt.want {
+				t.Errorf("formatPromptWithUsername() = %q, want %q", got, tt.want)
 			}
 		})
 	}

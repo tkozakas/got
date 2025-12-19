@@ -288,7 +288,11 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 	case SubCommandImage:
 		return h.handleGPTImage(chatID, parts)
 	default:
-		return h.handleGPTChat(ctx, chatID, args)
+		username := ""
+		if update.Message.From != nil {
+			username = update.Message.From.UserName
+		}
+		return h.handleGPTChat(ctx, chatID, username, args)
 	}
 }
 
@@ -505,26 +509,35 @@ func (h *BotHandlers) handleGPTImage(chatID int64, parts []string) error {
 	return h.client.SendPhoto(chatID, imageURL, prompt)
 }
 
-func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, prompt string) error {
+func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username string, prompt string) error {
 	_ = h.client.SendChatAction(chatID, ActionTyping)
+
+	formattedPrompt := formatPromptWithUsername(username, prompt)
 
 	var history []groq.Message
 	if h.cache != nil {
 		history, _ = h.cache.GetHistory(ctx, chatID)
 	}
 
-	response, err := h.gpt.Chat(ctx, prompt, history)
+	response, err := h.gpt.Chat(ctx, formattedPrompt, history)
 	if err != nil {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptError))
 	}
 
 	if h.cache != nil {
-		history = append(history, groq.Message{Role: "user", Content: prompt})
+		history = append(history, groq.Message{Role: "user", Content: formattedPrompt})
 		history = append(history, groq.Message{Role: "assistant", Content: response})
 		_ = h.cache.SaveHistory(ctx, chatID, history)
 	}
 
 	return h.client.SendMessage(chatID, response)
+}
+
+func formatPromptWithUsername(username string, prompt string) string {
+	if strings.TrimSpace(username) == "" {
+		return prompt
+	}
+	return username + ": " + prompt
 }
 
 func (h *BotHandlers) formatUser(user *model.User) string {
