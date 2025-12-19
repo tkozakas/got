@@ -21,12 +21,17 @@ GROQ_API_KEY=your_groq_api_key
 ADMIN_PASS=your_secret_password
 ```
 
-Run in production:
+Run with Docker (pull from registry):
 ```bash
 task prod
 ```
 
-Local development:
+Run with Docker (build locally):
+```bash
+task local
+```
+
+Local development (Go + dockerized DBs):
 ```bash
 task dev
 ```
