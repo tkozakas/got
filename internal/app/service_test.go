@@ -201,7 +201,7 @@ func TestServiceAddSticker(t *testing.T) {
 				return tt.saveErr
 			}
 
-			err := svc.AddSticker(context.Background(), tt.fileID, tt.chatID)
+			err := svc.AddSticker(context.Background(), tt.fileID, "test_set", tt.chatID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddSticker() error = %v, wantErr %v", err, tt.wantErr)
 			}

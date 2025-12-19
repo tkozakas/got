@@ -160,8 +160,8 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 		if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.Sticker == nil {
 			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerUsage))
 		}
-		fileID := update.Message.ReplyToMessage.Sticker.FileID
-		if err := h.service.AddSticker(ctx, fileID, chatID); err != nil {
+		sticker := update.Message.ReplyToMessage.Sticker
+		if err := h.service.AddSticker(ctx, sticker.FileID, sticker.SetName, chatID); err != nil {
 			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
 		}
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerAdded))
@@ -622,7 +622,11 @@ func formatPromptWithUsername(username string, prompt string) string {
 }
 
 func (h *BotHandlers) formatUser(user *model.User) string {
-	return fmt.Sprintf("[%s](tg://user?id=%d)", user.Username, user.UserID)
+	name := user.Username
+	if name == "" {
+		name = fmt.Sprintf("User%d", user.UserID)
+	}
+	return fmt.Sprintf("[%s](tg://user?id=%d)", name, user.UserID)
 }
 
 func (h *BotHandlers) formatStats(stats []*model.Stat, header string) string {
@@ -652,6 +656,10 @@ func (h *BotHandlers) formatSubredditList(subs []*model.Subreddit) string {
 }
 
 func (h *BotHandlers) formatStickerList(stickers []*model.Sticker) string {
+	if len(stickers) == 0 {
+		return h.t.Get(i18n.KeyNoStickers)
+	}
+
 	names := make(map[string]struct{})
 	for _, s := range stickers {
 		if s.StickerSetName != "" {
@@ -659,11 +667,16 @@ func (h *BotHandlers) formatStickerList(stickers []*model.Sticker) string {
 		}
 	}
 
+	if len(names) == 0 {
+		return fmt.Sprintf(h.t.Get(i18n.KeyStickerCount), len(stickers))
+	}
+
 	var sb strings.Builder
 	sb.WriteString(h.t.Get(i18n.KeyStickerListHeader))
 	for name := range names {
 		sb.WriteString("- `" + name + "`\n")
 	}
+	sb.WriteString(fmt.Sprintf("\n_%s_", fmt.Sprintf(h.t.Get(i18n.KeyStickerCount), len(stickers))))
 	return sb.String()
 }
 

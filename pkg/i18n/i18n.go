@@ -49,6 +49,7 @@ const (
 	KeyStickerListHeader  Key = "sticker_list_header"
 	KeyStickerRemoved     Key = "sticker_removed"
 	KeyStickerRemoveUsage Key = "sticker_remove_usage"
+	KeyStickerCount       Key = "sticker_count"
 	KeyReminderNotify     Key = "reminder_notify"
 
 	KeyCmdStart    Key = "cmd_start"

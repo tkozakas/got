@@ -125,7 +125,11 @@ func autoRouletteJob(svc *app.Service, client *telegram.Client, t *i18n.Translat
 }
 
 func formatUserLink(user *model.User) string {
-	return fmt.Sprintf("[%s](tg://user?id=%d)", user.Username, user.UserID)
+	name := user.Username
+	if name == "" {
+		name = fmt.Sprintf("User%d", user.UserID)
+	}
+	return fmt.Sprintf("[%s](tg://user?id=%d)", name, user.UserID)
 }
 
 func runReminderChecker(ctx context.Context, svc *app.Service, client *telegram.Client, t *i18n.Translator) {

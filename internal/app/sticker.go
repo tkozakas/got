@@ -6,7 +6,7 @@ import (
 	"got/internal/app/model"
 )
 
-func (s *Service) AddSticker(ctx context.Context, fileID string, chatID int64) error {
+func (s *Service) AddSticker(ctx context.Context, fileID, setName string, chatID int64) error {
 	chat, err := s.chats.Get(ctx, chatID)
 	if err != nil {
 		return fmt.Errorf("failed to get chat: %w", err)
@@ -16,8 +16,9 @@ func (s *Service) AddSticker(ctx context.Context, fileID string, chatID int64) e
 	}
 
 	sticker := &model.Sticker{
-		FileID: fileID,
-		Chat:   chat,
+		FileID:         fileID,
+		StickerSetName: setName,
+		Chat:           chat,
 	}
 	return s.stickers.Save(ctx, sticker)
 }

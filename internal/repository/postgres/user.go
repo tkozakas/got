@@ -22,7 +22,10 @@ func (r *UserRepository) Save(ctx context.Context, user *model.User) error {
 		INSERT INTO users (user_id, username)
 		VALUES ($1, $2)
 		ON CONFLICT (user_id) DO UPDATE 
-		SET username = EXCLUDED.username
+		SET username = CASE 
+			WHEN EXCLUDED.username != '' THEN EXCLUDED.username 
+			ELSE users.username 
+		END
 	`
 	_, err := r.pool.Exec(ctx, query, user.UserID, user.Username)
 	return err
