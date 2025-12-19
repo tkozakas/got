@@ -44,7 +44,7 @@ func (c *Client) GetUpdates(offset int) ([]Update, error) {
 }
 
 func (c *Client) SendMessage(chatID int64, text string) error {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"chat_id": chatID,
 		"text":    text,
 	}

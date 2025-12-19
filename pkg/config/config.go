@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	BotToken string
+	DBURL    string
 }
 
 func Load() *Config {
@@ -22,7 +23,14 @@ func Load() *Config {
 		os.Exit(1)
 	}
 
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		slog.Error("DB_URL is required")
+		os.Exit(1)
+	}
+
 	return &Config{
 		BotToken: token,
+		DBURL:    dbURL,
 	}
 }

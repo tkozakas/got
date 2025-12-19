@@ -39,6 +39,11 @@ tasks:
     cmds:
       - go test ./...
 
+  fmt:
+    desc: Format code
+    cmds:
+      - go fmt ./...
+
   stop:
     desc: Stop all running containers
     cmds:

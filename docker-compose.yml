@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   bot:
     container_name: got
@@ -10,7 +8,6 @@ services:
     env_file:
       - .env
     environment:
-      # Override .env for internal docker networking if needed
       DB_URL: postgres://postgres:postgres@postgres:5432/telebot?sslmode=disable
       REDIS_ADDR: redis:6379
     depends_on:

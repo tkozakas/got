@@ -26,6 +26,13 @@ jobs:
           version: latest
           args: --timeout=5m
 
+      - name: Check Formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code is not formatted. Run 'go fmt ./...'";
+            exit 1;
+          fi
+
       - name: Run Tests
         run: go test -v ./...
 
