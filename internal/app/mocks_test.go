@@ -21,8 +21,10 @@ func (m *MockChatRepository) Get(ctx context.Context, chatID int64) (*model.Chat
 
 // MockUserRepository
 type MockUserRepository struct {
-	SaveFunc func(ctx context.Context, user *model.User) error
-	GetFunc  func(ctx context.Context, userID int64) (*model.User, error)
+	SaveFunc            func(ctx context.Context, user *model.User) error
+	GetFunc             func(ctx context.Context, userID int64) (*model.User, error)
+	AddToChatFunc       func(ctx context.Context, userID, chatID int64) error
+	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.User, error)
 }
 
 func (m *MockUserRepository) Save(ctx context.Context, user *model.User) error {
@@ -30,6 +32,18 @@ func (m *MockUserRepository) Save(ctx context.Context, user *model.User) error {
 }
 func (m *MockUserRepository) Get(ctx context.Context, userID int64) (*model.User, error) {
 	return m.GetFunc(ctx, userID)
+}
+func (m *MockUserRepository) AddToChat(ctx context.Context, userID, chatID int64) error {
+	if m.AddToChatFunc != nil {
+		return m.AddToChatFunc(ctx, userID, chatID)
+	}
+	return nil
+}
+func (m *MockUserRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.User, error) {
+	if m.GetRandomByChatFunc != nil {
+		return m.GetRandomByChatFunc(ctx, chatID)
+	}
+	return nil, nil
 }
 
 // MockReminderRepository
@@ -55,54 +69,125 @@ func (m *MockReminderRepository) ListByChat(ctx context.Context, chatID int64) (
 
 // MockFactRepository
 type MockFactRepository struct {
-	GetRandomFunc func(ctx context.Context) (*model.Fact, error)
-	SaveFunc      func(ctx context.Context, fact *model.Fact) error
+	SaveFunc            func(ctx context.Context, fact *model.Fact) error
+	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Fact, error)
+	ListByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Fact, error)
 }
 
-func (m *MockFactRepository) GetRandom(ctx context.Context) (*model.Fact, error) {
-	return m.GetRandomFunc(ctx)
-}
 func (m *MockFactRepository) Save(ctx context.Context, fact *model.Fact) error {
 	return m.SaveFunc(ctx, fact)
+}
+func (m *MockFactRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.Fact, error) {
+	if m.GetRandomByChatFunc != nil {
+		return m.GetRandomByChatFunc(ctx, chatID)
+	}
+	return nil, nil
+}
+func (m *MockFactRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Fact, error) {
+	if m.ListByChatFunc != nil {
+		return m.ListByChatFunc(ctx, chatID)
+	}
+	return nil, nil
 }
 
 // MockStickerRepository
 type MockStickerRepository struct {
-	GetRandomFunc func(ctx context.Context) (*model.Sticker, error)
-	SaveFunc      func(ctx context.Context, sticker *model.Sticker) error
+	SaveFunc            func(ctx context.Context, sticker *model.Sticker) error
+	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Sticker, error)
+	ListByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Sticker, error)
 }
 
-func (m *MockStickerRepository) GetRandom(ctx context.Context) (*model.Sticker, error) {
-	return m.GetRandomFunc(ctx)
-}
 func (m *MockStickerRepository) Save(ctx context.Context, sticker *model.Sticker) error {
 	return m.SaveFunc(ctx, sticker)
+}
+func (m *MockStickerRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.Sticker, error) {
+	if m.GetRandomByChatFunc != nil {
+		return m.GetRandomByChatFunc(ctx, chatID)
+	}
+	return nil, nil
+}
+func (m *MockStickerRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Sticker, error) {
+	if m.ListByChatFunc != nil {
+		return m.ListByChatFunc(ctx, chatID)
+	}
+	return nil, nil
 }
 
 // MockSubredditRepository
 type MockSubredditRepository struct {
-	GetRandomFunc func(ctx context.Context) (*model.Subreddit, error)
-	SaveFunc      func(ctx context.Context, subreddit *model.Subreddit) error
+	SaveFunc            func(ctx context.Context, subreddit *model.Subreddit) error
+	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Subreddit, error)
+	ListByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Subreddit, error)
+	DeleteFunc          func(ctx context.Context, name string, chatID int64) error
 }
 
-func (m *MockSubredditRepository) GetRandom(ctx context.Context) (*model.Subreddit, error) {
-	return m.GetRandomFunc(ctx)
-}
 func (m *MockSubredditRepository) Save(ctx context.Context, subreddit *model.Subreddit) error {
 	return m.SaveFunc(ctx, subreddit)
 }
+func (m *MockSubredditRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.Subreddit, error) {
+	if m.GetRandomByChatFunc != nil {
+		return m.GetRandomByChatFunc(ctx, chatID)
+	}
+	return nil, nil
+}
+func (m *MockSubredditRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Subreddit, error) {
+	if m.ListByChatFunc != nil {
+		return m.ListByChatFunc(ctx, chatID)
+	}
+	return nil, nil
+}
+func (m *MockSubredditRepository) Delete(ctx context.Context, name string, chatID int64) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(ctx, name, chatID)
+	}
+	return nil
+}
 
-// Helper to create a service with all mocks
-func newTestService() (*Service, *MockChatRepository, *MockUserRepository, *MockReminderRepository, *MockFactRepository, *MockStickerRepository, *MockSubredditRepository) {
-	chatRepo := &MockChatRepository{}
-	userRepo := &MockUserRepository{}
-	reminderRepo := &MockReminderRepository{}
-	factRepo := &MockFactRepository{}
-	stickerRepo := &MockStickerRepository{}
-	subredditRepo := &MockSubredditRepository{}
+// MockStatRepository
+type MockStatRepository struct {
+	SaveFunc               func(ctx context.Context, stat *model.Stat) error
+	FindByUserChatYearFunc func(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error)
+	FindWinnerByChatFunc   func(ctx context.Context, chatID int64, year int) (*model.Stat, error)
+	ListByChatAndYearFunc  func(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
+	ListByChatFunc         func(ctx context.Context, chatID int64) ([]*model.Stat, error)
+	ResetDailyWinnersFunc  func(ctx context.Context) error
+}
 
-	svc := NewService(chatRepo, userRepo, reminderRepo, factRepo, stickerRepo, subredditRepo)
-	return svc, chatRepo, userRepo, reminderRepo, factRepo, stickerRepo, subredditRepo
+func (m *MockStatRepository) Save(ctx context.Context, stat *model.Stat) error {
+	if m.SaveFunc != nil {
+		return m.SaveFunc(ctx, stat)
+	}
+	return nil
+}
+func (m *MockStatRepository) FindByUserChatYear(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error) {
+	if m.FindByUserChatYearFunc != nil {
+		return m.FindByUserChatYearFunc(ctx, userID, chatID, year)
+	}
+	return nil, nil
+}
+func (m *MockStatRepository) FindWinnerByChat(ctx context.Context, chatID int64, year int) (*model.Stat, error) {
+	if m.FindWinnerByChatFunc != nil {
+		return m.FindWinnerByChatFunc(ctx, chatID, year)
+	}
+	return nil, nil
+}
+func (m *MockStatRepository) ListByChatAndYear(ctx context.Context, chatID int64, year int) ([]*model.Stat, error) {
+	if m.ListByChatAndYearFunc != nil {
+		return m.ListByChatAndYearFunc(ctx, chatID, year)
+	}
+	return nil, nil
+}
+func (m *MockStatRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Stat, error) {
+	if m.ListByChatFunc != nil {
+		return m.ListByChatFunc(ctx, chatID)
+	}
+	return nil, nil
+}
+func (m *MockStatRepository) ResetDailyWinners(ctx context.Context) error {
+	if m.ResetDailyWinnersFunc != nil {
+		return m.ResetDailyWinnersFunc(ctx)
+	}
+	return nil
 }
 
 var errMock = errors.New("mock error")

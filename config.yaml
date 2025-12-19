@@ -1,0 +1,5 @@
+bot:
+  language: en
+
+schedule:
+  winner_reset: "0 0 0 * * *"

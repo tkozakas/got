@@ -23,31 +23,26 @@ func (r *FactRepository) Save(ctx context.Context, fact *model.Fact) error {
 		VALUES ($1, $2)
 		RETURNING fact_id
 	`
-	var chatID *int64
-	if fact.Chat != nil {
-		chatID = &fact.Chat.ChatID
-	}
-
-	err := r.pool.QueryRow(ctx, query, fact.Comment, chatID).Scan(&fact.ID)
+	err := r.pool.QueryRow(ctx, query, fact.Comment, fact.Chat.ChatID).Scan(&fact.ID)
 	return err
 }
 
-func (r *FactRepository) GetRandom(ctx context.Context) (*model.Fact, error) {
+func (r *FactRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.Fact, error) {
 	query := `
 		SELECT f.fact_id, f.comment, c.chat_id, c.chat_name
 		FROM facts f
-		LEFT JOIN chats c ON f.chat_id = c.chat_id
+		JOIN chats c ON f.chat_id = c.chat_id
+		WHERE f.chat_id = $1
 		ORDER BY RANDOM()
 		LIMIT 1
 	`
 
-	row := r.pool.QueryRow(ctx, query)
+	row := r.pool.QueryRow(ctx, query, chatID)
 
 	var fact model.Fact
-	var chatID *int64
-	var chatName *string
+	fact.Chat = &model.Chat{}
 
-	err := row.Scan(&fact.ID, &fact.Comment, &chatID, &chatName)
+	err := row.Scan(&fact.ID, &fact.Comment, &fact.Chat.ChatID, &fact.Chat.ChatName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -55,12 +50,34 @@ func (r *FactRepository) GetRandom(ctx context.Context) (*model.Fact, error) {
 		return nil, err
 	}
 
-	if chatID != nil {
-		fact.Chat = &model.Chat{
-			ChatID:   *chatID,
-			ChatName: *chatName,
+	return &fact, nil
+}
+
+func (r *FactRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Fact, error) {
+	query := `
+		SELECT f.fact_id, f.comment, c.chat_id, c.chat_name
+		FROM facts f
+		JOIN chats c ON f.chat_id = c.chat_id
+		WHERE f.chat_id = $1
+		ORDER BY f.fact_id DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var facts []*model.Fact
+	for rows.Next() {
+		var fact model.Fact
+		fact.Chat = &model.Chat{}
+		err := rows.Scan(&fact.ID, &fact.Comment, &fact.Chat.ChatID, &fact.Chat.ChatName)
+		if err != nil {
+			return nil, err
 		}
+		facts = append(facts, &fact)
 	}
 
-	return &fact, nil
+	return facts, nil
 }

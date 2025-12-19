@@ -23,31 +23,26 @@ func (r *StickerRepository) Save(ctx context.Context, sticker *model.Sticker) er
 		VALUES ($1, $2, $3)
 		RETURNING sticker_id
 	`
-	var chatID *int64
-	if sticker.Chat != nil {
-		chatID = &sticker.Chat.ChatID
-	}
-
-	err := r.pool.QueryRow(ctx, query, sticker.StickerSetName, sticker.FileID, chatID).Scan(&sticker.StickerID)
+	err := r.pool.QueryRow(ctx, query, sticker.StickerSetName, sticker.FileID, sticker.Chat.ChatID).Scan(&sticker.StickerID)
 	return err
 }
 
-func (r *StickerRepository) GetRandom(ctx context.Context) (*model.Sticker, error) {
+func (r *StickerRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.Sticker, error) {
 	query := `
 		SELECT s.sticker_id, s.sticker_set_name, s.file_id, c.chat_id, c.chat_name
 		FROM stickers s
-		LEFT JOIN chats c ON s.chat_id = c.chat_id
+		JOIN chats c ON s.chat_id = c.chat_id
+		WHERE s.chat_id = $1
 		ORDER BY RANDOM()
 		LIMIT 1
 	`
 
-	row := r.pool.QueryRow(ctx, query)
+	row := r.pool.QueryRow(ctx, query, chatID)
 
 	var sticker model.Sticker
-	var chatID *int64
-	var chatName *string
+	sticker.Chat = &model.Chat{}
 
-	err := row.Scan(&sticker.StickerID, &sticker.StickerSetName, &sticker.FileID, &chatID, &chatName)
+	err := row.Scan(&sticker.StickerID, &sticker.StickerSetName, &sticker.FileID, &sticker.Chat.ChatID, &sticker.Chat.ChatName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -55,12 +50,34 @@ func (r *StickerRepository) GetRandom(ctx context.Context) (*model.Sticker, erro
 		return nil, err
 	}
 
-	if chatID != nil {
-		sticker.Chat = &model.Chat{
-			ChatID:   *chatID,
-			ChatName: *chatName,
+	return &sticker, nil
+}
+
+func (r *StickerRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Sticker, error) {
+	query := `
+		SELECT s.sticker_id, s.sticker_set_name, s.file_id, c.chat_id, c.chat_name
+		FROM stickers s
+		JOIN chats c ON s.chat_id = c.chat_id
+		WHERE s.chat_id = $1
+		ORDER BY s.sticker_id DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var stickers []*model.Sticker
+	for rows.Next() {
+		var sticker model.Sticker
+		sticker.Chat = &model.Chat{}
+		err := rows.Scan(&sticker.StickerID, &sticker.StickerSetName, &sticker.FileID, &sticker.Chat.ChatID, &sticker.Chat.ChatName)
+		if err != nil {
+			return nil, err
 		}
+		stickers = append(stickers, &sticker)
 	}
 
-	return &sticker, nil
+	return stickers, nil
 }

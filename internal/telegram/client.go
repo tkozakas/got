@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	defaultTimeout = 30 * time.Second
-	getUpdatesCMD  = "/getUpdates"
-	sendMessageCMD = "/sendMessage"
-	sendPhotoCMD   = "/sendPhoto"
-	sendStickerCMD = "/sendSticker"
+	defaultTimeout   = 30 * time.Second
+	getUpdatesCMD    = "/getUpdates"
+	sendMessageCMD   = "/sendMessage"
+	sendPhotoCMD     = "/sendPhoto"
+	sendStickerCMD   = "/sendSticker"
+	setMyCommandsCMD = "/setMyCommands"
 )
 
 type Client struct {
@@ -47,8 +48,9 @@ func (c *Client) GetUpdates(offset int) ([]Update, error) {
 
 func (c *Client) SendMessage(chatID int64, text string) error {
 	payload := map[string]any{
-		"chat_id": chatID,
-		"text":    text,
+		"chat_id":    chatID,
+		"text":       text,
+		"parse_mode": "Markdown",
 	}
 
 	data, err := json.Marshal(payload)
@@ -122,4 +124,24 @@ func (c *Client) postJSON(endpoint string, data []byte) error {
 	}
 
 	return nil
+}
+
+// BotCommand represents a Telegram bot command.
+type BotCommand struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+}
+
+// SetMyCommands registers bot commands with Telegram.
+func (c *Client) SetMyCommands(commands []BotCommand) error {
+	payload := map[string]any{
+		"commands": commands,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(setMyCommandsCMD, data)
 }

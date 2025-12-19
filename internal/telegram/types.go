@@ -6,10 +6,12 @@ type Update struct {
 }
 
 type Message struct {
-	MessageID int    `json:"message_id"`
-	From      *User  `json:"from"`
-	Chat      *Chat  `json:"chat"`
-	Text      string `json:"text"`
+	MessageID      int      `json:"message_id"`
+	From           *User    `json:"from"`
+	Chat           *Chat    `json:"chat"`
+	Text           string   `json:"text"`
+	ReplyToMessage *Message `json:"reply_to_message"`
+	Sticker        *Sticker `json:"sticker"`
 }
 
 func (m *Message) Command() string {
@@ -43,8 +45,15 @@ type User struct {
 }
 
 type Chat struct {
-	ID   int64  `json:"id"`
-	Type string `json:"type"`
+	ID    int64  `json:"id"`
+	Type  string `json:"type"`
+	Title string `json:"title"`
+}
+
+type Sticker struct {
+	FileID       string `json:"file_id"`
+	FileUniqueID string `json:"file_unique_id"`
+	SetName      string `json:"set_name"`
 }
 
 type APIResponse struct {

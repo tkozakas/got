@@ -5,11 +5,13 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	defaultRedisAddr = "localhost:6379"
-	defaultLanguage  = "en"
+	defaultRedisAddr  = "localhost:6379"
+	defaultLanguage   = "en"
+	defaultConfigPath = "config.yaml"
 )
 
 type Config struct {
@@ -17,7 +19,16 @@ type Config struct {
 	DBURL     string
 	GptKey    string
 	RedisAddr string
-	Language  string
+	Bot       BotConfig      `yaml:"bot"`
+	Schedule  ScheduleConfig `yaml:"schedule"`
+}
+
+type BotConfig struct {
+	Language string `yaml:"language"`
+}
+
+type ScheduleConfig struct {
+	WinnerReset string `yaml:"winner_reset"`
 }
 
 func Load() *Config {
@@ -37,17 +48,39 @@ func Load() *Config {
 		os.Exit(1)
 	}
 
-	gptKey := os.Getenv("GROQ_API_KEY")
-	redisAddr := getEnvOrDefault("REDIS_ADDR", defaultRedisAddr)
-	language := getEnvOrDefault("LANGUAGE", defaultLanguage)
-
-	return &Config{
+	cfg := &Config{
 		BotToken:  token,
 		DBURL:     dbURL,
-		GptKey:    gptKey,
-		RedisAddr: redisAddr,
-		Language:  language,
+		GptKey:    os.Getenv("GROQ_API_KEY"),
+		RedisAddr: getEnvOrDefault("REDIS_ADDR", defaultRedisAddr),
 	}
+
+	loadYAMLConfig(cfg)
+
+	if cfg.Bot.Language == "" {
+		cfg.Bot.Language = getEnvOrDefault("LANGUAGE", defaultLanguage)
+	}
+
+	return cfg
+}
+
+func loadYAMLConfig(cfg *Config) {
+	data, err := os.ReadFile(defaultConfigPath)
+	if err != nil {
+		slog.Warn("No config.yaml found, using defaults")
+		setDefaults(cfg)
+		return
+	}
+
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		slog.Error("Failed to parse config.yaml", "error", err)
+		setDefaults(cfg)
+	}
+}
+
+func setDefaults(cfg *Config) {
+	cfg.Bot.Language = defaultLanguage
+	cfg.Schedule.WinnerReset = "0 0 * * *"
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

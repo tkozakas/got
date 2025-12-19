@@ -13,6 +13,8 @@ type ChatRepository interface {
 type UserRepository interface {
 	Save(ctx context.Context, user *model.User) error
 	Get(ctx context.Context, userID int64) (*model.User, error)
+	AddToChat(ctx context.Context, userID, chatID int64) error
+	GetRandomByChat(ctx context.Context, chatID int64) (*model.User, error)
 }
 
 type ReminderRepository interface {
@@ -23,16 +25,29 @@ type ReminderRepository interface {
 }
 
 type FactRepository interface {
-	GetRandom(ctx context.Context) (*model.Fact, error)
 	Save(ctx context.Context, fact *model.Fact) error
+	GetRandomByChat(ctx context.Context, chatID int64) (*model.Fact, error)
+	ListByChat(ctx context.Context, chatID int64) ([]*model.Fact, error)
 }
 
 type StickerRepository interface {
-	GetRandom(ctx context.Context) (*model.Sticker, error)
 	Save(ctx context.Context, sticker *model.Sticker) error
+	GetRandomByChat(ctx context.Context, chatID int64) (*model.Sticker, error)
+	ListByChat(ctx context.Context, chatID int64) ([]*model.Sticker, error)
 }
 
 type SubredditRepository interface {
-	GetRandom(ctx context.Context) (*model.Subreddit, error)
 	Save(ctx context.Context, subreddit *model.Subreddit) error
+	GetRandomByChat(ctx context.Context, chatID int64) (*model.Subreddit, error)
+	ListByChat(ctx context.Context, chatID int64) ([]*model.Subreddit, error)
+	Delete(ctx context.Context, name string, chatID int64) error
+}
+
+type StatRepository interface {
+	Save(ctx context.Context, stat *model.Stat) error
+	FindByUserChatYear(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error)
+	FindWinnerByChat(ctx context.Context, chatID int64, year int) (*model.Stat, error)
+	ListByChatAndYear(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
+	ListByChat(ctx context.Context, chatID int64) ([]*model.Stat, error)
+	ResetDailyWinners(ctx context.Context) error
 }

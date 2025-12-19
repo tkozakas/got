@@ -19,21 +19,25 @@ func NewSubredditRepository(pool *pgxpool.Pool) *SubredditRepository {
 
 func (r *SubredditRepository) Save(ctx context.Context, sub *model.Subreddit) error {
 	query := `
-		INSERT INTO subreddits (name)
-		VALUES ($1)
+		INSERT INTO subreddits (name, chat_id)
+		VALUES ($1, $2)
+		ON CONFLICT (name, chat_id) DO NOTHING
 		RETURNING id
 	`
-	err := r.pool.QueryRow(ctx, query, sub.Name).Scan(&sub.ID)
+	err := r.pool.QueryRow(ctx, query, sub.Name, sub.ChatID).Scan(&sub.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil // Already exists
+	}
 	return err
 }
 
-func (r *SubredditRepository) GetRandom(ctx context.Context) (*model.Subreddit, error) {
-	query := `SELECT id, name FROM subreddits ORDER BY RANDOM() LIMIT 1`
+func (r *SubredditRepository) GetRandomByChat(ctx context.Context, chatID int64) (*model.Subreddit, error) {
+	query := `SELECT id, name, chat_id FROM subreddits WHERE chat_id = $1 ORDER BY RANDOM() LIMIT 1`
 
-	row := r.pool.QueryRow(ctx, query)
+	row := r.pool.QueryRow(ctx, query, chatID)
 
 	var sub model.Subreddit
-	err := row.Scan(&sub.ID, &sub.Name)
+	err := row.Scan(&sub.ID, &sub.Name, &sub.ChatID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -42,4 +46,32 @@ func (r *SubredditRepository) GetRandom(ctx context.Context) (*model.Subreddit, 
 	}
 
 	return &sub, nil
+}
+
+func (r *SubredditRepository) ListByChat(ctx context.Context, chatID int64) ([]*model.Subreddit, error) {
+	query := `SELECT id, name, chat_id FROM subreddits WHERE chat_id = $1 ORDER BY name`
+
+	rows, err := r.pool.Query(ctx, query, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []*model.Subreddit
+	for rows.Next() {
+		var sub model.Subreddit
+		err := rows.Scan(&sub.ID, &sub.Name, &sub.ChatID)
+		if err != nil {
+			return nil, err
+		}
+		subs = append(subs, &sub)
+	}
+
+	return subs, nil
+}
+
+func (r *SubredditRepository) Delete(ctx context.Context, name string, chatID int64) error {
+	query := `DELETE FROM subreddits WHERE name = $1 AND chat_id = $2`
+	_, err := r.pool.Exec(ctx, query, name, chatID)
+	return err
 }

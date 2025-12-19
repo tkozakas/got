@@ -44,6 +44,16 @@ type Sticker struct {
 }
 
 type Subreddit struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	ChatID int64  `json:"chat_id"`
+}
+
+type Stat struct {
+	StatID   int64 `json:"stat_id"`
+	User     *User `json:"user"`
+	Chat     *Chat `json:"chat"`
+	Score    int64 `json:"score"`
+	Year     int   `json:"year"`
+	IsWinner bool  `json:"is_winner"`
 }
