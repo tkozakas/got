@@ -26,7 +26,7 @@ const (
 	remindSuccess      = "Reminder set for %s"
 	remindListHeader   = "Pending reminders:\n"
 	remindFormat       = "- %s (at %s)\n"
-	memeFormat         = "Here is a meme from r/%s"
+	memeFormat         = "Here is a meme from r/%s: %s"
 	stickerFormat      = "Here is a sticker for you: %s (ID: %s)"
 	factFormat         = "Fact: %s"
 	gptImageGenerating = "Generating image for: %s"
@@ -90,10 +90,21 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	if err != nil {
 		return h.client.SendMessage(update.Message.Chat.ID, subredditError)
 	}
-	if sub == nil {
-		return h.client.SendMessage(update.Message.Chat.ID, noSubreddits)
+
+	// Fallback if no subreddits in DB
+	subName := "programmerhumor"
+	if sub != nil {
+		subName = sub.Name
 	}
-	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(memeFormat, sub.Name))
+
+	memes, err := h.fetchMemes(ctx, subName, 1)
+	if err != nil || len(memes) == 0 {
+		return h.client.SendMessage(update.Message.Chat.ID, "Failed to fetch meme from r/"+subName)
+	}
+
+	meme := memes[0]
+	// Send text link for now as we don't handle photo upload yet
+	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("%s\n%s", meme.Title, meme.URL))
 }
 
 func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
