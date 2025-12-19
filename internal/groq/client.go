@@ -63,10 +63,18 @@ func NewClient(apiKey string) *Client {
 }
 
 func (c *Client) Chat(ctx context.Context, prompt string, history []Message) (string, error) {
+	return c.ChatWithModel(ctx, prompt, history, c.model)
+}
+
+func (c *Client) ChatWithModel(ctx context.Context, prompt string, history []Message, model string) (string, error) {
+	if model == "" {
+		model = c.model
+	}
+
 	messages := c.buildMessages(prompt, history)
 
 	reqBody := Request{
-		Model:    c.model,
+		Model:    model,
 		Messages: messages,
 	}
 
@@ -81,6 +89,15 @@ func (c *Client) Chat(ctx context.Context, prompt string, history []Message) (st
 	}
 
 	return c.parseResponse(resp)
+}
+
+func (c *Client) ValidateModel(model string) error {
+	for _, m := range c.ListModels() {
+		if m == model {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid model: %s", model)
 }
 
 func (c *Client) ListModels() []string {

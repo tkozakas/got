@@ -20,17 +20,17 @@ func TestClientHistoryKey(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "Positive chat ID",
+			name:   "positiveChatID",
 			chatID: 123,
 			want:   "gpt:history:123",
 		},
 		{
-			name:   "Negative chat ID",
+			name:   "negativeChatID",
 			chatID: -456,
 			want:   "gpt:history:-456",
 		},
 		{
-			name:   "Zero chat ID",
+			name:   "zeroChatID",
 			chatID: 0,
 			want:   "gpt:history:0",
 		},
@@ -39,6 +39,39 @@ func TestClientHistoryKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := client.historyKey(tt.chatID)
+			assertEqual(t, got, tt.want)
+		})
+	}
+}
+
+func TestClientModelKey(t *testing.T) {
+	client := newTestRedisClient()
+
+	tests := []struct {
+		name   string
+		chatID int64
+		want   string
+	}{
+		{
+			name:   "positiveChatID",
+			chatID: 123,
+			want:   "gpt:model:123",
+		},
+		{
+			name:   "negativeChatID",
+			chatID: -456,
+			want:   "gpt:model:-456",
+		},
+		{
+			name:   "zeroChatID",
+			chatID: 0,
+			want:   "gpt:model:0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := client.modelKey(tt.chatID)
 			assertEqual(t, got, tt.want)
 		})
 	}

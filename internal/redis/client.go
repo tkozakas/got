@@ -14,6 +14,7 @@ const (
 	historyTTL     = 24 * time.Hour
 	maxHistoryLen  = 10
 	historyKeyFmt  = "gpt:history:%d"
+	modelKeyFmt    = "gpt:model:%d"
 	commandSet     = "*3\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n"
 	commandGet     = "*2\r\n$3\r\nGET\r\n$%d\r\n%s\r\n"
 	commandExpire  = "*3\r\n$6\r\nEXPIRE\r\n$%d\r\n%s\r\n$%d\r\n%d\r\n"
@@ -68,8 +69,22 @@ func (c *Client) ClearHistory(ctx context.Context, chatID int64) error {
 	return c.set(ctx, key, "[]")
 }
 
+func (c *Client) GetModel(ctx context.Context, chatID int64) (string, error) {
+	key := c.modelKey(chatID)
+	return c.get(ctx, key)
+}
+
+func (c *Client) SetModel(ctx context.Context, chatID int64, model string) error {
+	key := c.modelKey(chatID)
+	return c.set(ctx, key, model)
+}
+
 func (c *Client) historyKey(chatID int64) string {
 	return fmt.Sprintf(historyKeyFmt, chatID)
+}
+
+func (c *Client) modelKey(chatID int64) string {
+	return fmt.Sprintf(modelKeyFmt, chatID)
 }
 
 func (c *Client) get(ctx context.Context, key string) (string, error) {

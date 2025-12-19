@@ -278,9 +278,9 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 	switch subCmd {
 	case SubCommandModel:
 		if len(parts) > 1 && strings.TrimSpace(parts[1]) != "" {
-			return h.handleGPTSetModel(chatID, strings.TrimSpace(parts[1]))
+			return h.handleGPTSetModel(ctx, chatID, strings.TrimSpace(parts[1]))
 		}
-		return h.handleGPTModels(chatID)
+		return h.handleGPTModels(ctx, chatID)
 	case SubCommandClear, SubCommandForget:
 		return h.handleGPTClear(ctx, chatID)
 	case SubCommandMemory:
@@ -449,17 +449,24 @@ func (h *BotHandlers) handleStatsAll(ctx context.Context, chatID int64) error {
 	return h.client.SendMessage(chatID, h.formatStats(aggregated, h.t.Get(i18n.KeyStatsHeaderAll)))
 }
 
-func (h *BotHandlers) handleGPTModels(chatID int64) error {
+func (h *BotHandlers) handleGPTModels(ctx context.Context, chatID int64) error {
+	currentModel := h.getChatModel(ctx, chatID)
+	models := h.gpt.ListModels()
+
 	var sb strings.Builder
 	sb.WriteString(h.t.Get(i18n.KeyGptModelsHeader))
-	for _, m := range h.gpt.ListModels() {
-		sb.WriteString("- " + m + "\n")
+	for _, m := range models {
+		prefix := "  "
+		if m == currentModel {
+			prefix = "→ "
+		}
+		sb.WriteString(prefix + m + "\n")
 	}
 	return h.client.SendMessage(chatID, sb.String())
 }
 
-func (h *BotHandlers) handleGPTSetModel(chatID int64, modelName string) error {
-	if err := h.gpt.SetModel(modelName); err != nil {
+func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, modelName string) error {
+	if err := h.gpt.ValidateModel(modelName); err != nil {
 		var sb strings.Builder
 		sb.WriteString(h.t.Get(i18n.KeyGptModelInvalid))
 		for _, m := range h.gpt.ListModels() {
@@ -467,7 +474,20 @@ func (h *BotHandlers) handleGPTSetModel(chatID int64, modelName string) error {
 		}
 		return h.client.SendMessage(chatID, sb.String())
 	}
+
+	if h.cache != nil {
+		_ = h.cache.SetModel(ctx, chatID, modelName)
+	}
+
 	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyGptModelSet), modelName))
+}
+
+func (h *BotHandlers) getChatModel(ctx context.Context, chatID int64) string {
+	if h.cache == nil {
+		return ""
+	}
+	model, _ := h.cache.GetModel(ctx, chatID)
+	return model
 }
 
 func (h *BotHandlers) handleGPTClear(ctx context.Context, chatID int64) error {
@@ -513,13 +533,14 @@ func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username 
 	_ = h.client.SendChatAction(chatID, ActionTyping)
 
 	formattedPrompt := formatPromptWithUsername(username, prompt)
+	model := h.getChatModel(ctx, chatID)
 
 	var history []groq.Message
 	if h.cache != nil {
 		history, _ = h.cache.GetHistory(ctx, chatID)
 	}
 
-	response, err := h.gpt.Chat(ctx, formattedPrompt, history)
+	response, err := h.gpt.ChatWithModel(ctx, formattedPrompt, history, model)
 	if err != nil {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptError))
 	}
