@@ -39,20 +39,23 @@ jobs:
   docker-build:
     name: Docker Build (${{ matrix.platform }})
     needs: lint-test
-    runs-on: ubuntu-latest
     if: github.event_name == 'push'
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            tag: linux-amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            tag: linux-arm64
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -64,19 +67,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare platform tag
-        id: prep
-        run: echo "tag=${platform//\//-}" >> $GITHUB_OUTPUT
-        env:
-          platform: ${{ matrix.platform }}
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: ${{ matrix.platform }}
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ steps.prep.outputs.tag }}
+          tags: ghcr.io/${{ github.repository }}:${{ matrix.tag }}
 
   docker-manifest:
     name: Create Multi-arch Manifest
