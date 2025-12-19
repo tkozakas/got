@@ -319,14 +319,6 @@ func newTestRedisClient() *Client {
 	return NewClient(testRedisAddr)
 }
 
-func createTestHistory(size int) []groq.Message {
-	history := make([]groq.Message, size)
-	for i := range history {
-		history[i] = groq.Message{Role: "user", Content: "msg"}
-	}
-	return history
-}
-
 func createTestHistoryWithIndex(size int) []groq.Message {
 	history := make([]groq.Message, size)
 	for i := range history {
