@@ -550,9 +550,18 @@ func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []
 	defer typing.Stop()
 
 	prompt := strings.TrimSpace(parts[1])
-	imageURL := fmt.Sprintf("https://image.pollinations.ai/prompt/%s", url.QueryEscape(prompt))
+	imageURL := buildImageURL(prompt)
 
 	return h.client.SendPhoto(chatID, imageURL, prompt)
+}
+
+func buildImageURL(prompt string) string {
+	seed := time.Now().UnixNano() % 1000000
+	return fmt.Sprintf(
+		"https://image.pollinations.ai/prompt/%s?width=1024&height=1024&seed=%d&nologo=true&enhance=true",
+		url.QueryEscape(prompt),
+		seed,
+	)
 }
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username string, prompt string) error {

@@ -938,3 +938,43 @@ func TestFormatHistoryAsText(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildImageURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		prompt       string
+		wantContains []string
+	}{
+		{
+			name:   "simplePrompt",
+			prompt: "a cat",
+			wantContains: []string{
+				"https://image.pollinations.ai/prompt/a+cat",
+				"width=1024",
+				"height=1024",
+				"nologo=true",
+				"enhance=true",
+				"seed=",
+			},
+		},
+		{
+			name:   "promptWithSpecialChars",
+			prompt: "a cat & dog",
+			wantContains: []string{
+				"a+cat+%26+dog",
+				"width=1024",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildImageURL(tt.prompt)
+			for _, want := range tt.wantContains {
+				if !strings.Contains(got, want) {
+					t.Errorf("buildImageURL() = %q, should contain %q", got, want)
+				}
+			}
+		})
+	}
+}
