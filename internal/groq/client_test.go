@@ -69,9 +69,9 @@ func TestClientChatWithHistory(t *testing.T) {
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		assertGroqHeaders(t, r)
 		var req Request
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		receivedMessages = req.Messages
-		json.NewEncoder(w).Encode(newSuccessResponse("response"))
+		_ = json.NewEncoder(w).Encode(newSuccessResponse("response"))
 	})
 
 	history := []Message{
@@ -115,13 +115,13 @@ func TestClientSetModel(t *testing.T) {
 
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		var req Request
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		receivedModel = req.Model
-		json.NewEncoder(w).Encode(newSuccessResponse("ok"))
+		_ = json.NewEncoder(w).Encode(newSuccessResponse("ok"))
 	})
 
 	client := newTestGroqClient(server.URL)
-	client.SetModel("mixtral-8x7b-32768")
+	_ = client.SetModel("mixtral-8x7b-32768")
 
 	_, err := client.Chat(context.Background(), "test", nil)
 	assertNoError(t, err)
@@ -214,7 +214,7 @@ func newGroqTestServer(t *testing.T, response Response, statusCode int) *httptes
 	return newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		assertGroqHeaders(t, r)
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	})
 }
 
@@ -313,7 +313,7 @@ func TestClientFetchModels(t *testing.T) {
 					t.Error("missing authorization header")
 				}
 				w.WriteHeader(tt.statusCode)
-				json.NewEncoder(w).Encode(tt.response)
+				_ = json.NewEncoder(w).Encode(tt.response)
 			})
 
 			client := newTestGroqClientWithModelsURL(server.URL)
@@ -338,7 +338,7 @@ func TestClientFetchModelsSorted(t *testing.T) {
 	}
 
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	})
 
 	client := newTestGroqClientWithModelsURL(server.URL)

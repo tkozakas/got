@@ -133,7 +133,7 @@ func newTestServerWithHandler(t *testing.T, handler http.HandlerFunc) *httptest.
 func newTestServerWithJSON(t *testing.T, response any) *httptest.Server {
 	t.Helper()
 	return newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	})
 }
 

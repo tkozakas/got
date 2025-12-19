@@ -274,8 +274,8 @@ func TestTruncateHistoryPreservesOrder(t *testing.T) {
 		currContent := truncated[i].Content
 
 		var prevIdx, currIdx int
-		fmt.Sscanf(prevContent, "msg-%d", &prevIdx)
-		fmt.Sscanf(currContent, "msg-%d", &currIdx)
+		_, _ = fmt.Sscanf(prevContent, "msg-%d", &prevIdx)
+		_, _ = fmt.Sscanf(currContent, "msg-%d", &currIdx)
 
 		if currIdx <= prevIdx {
 			t.Errorf("order not preserved: message %d (%q) comes after message %d (%q)",

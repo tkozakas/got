@@ -99,7 +99,7 @@ func TestGenerateSpeechSuccess(t *testing.T) {
 				}
 
 				w.WriteHeader(http.StatusOK)
-				w.Write(tt.responseBody)
+				_, _ = w.Write(tt.responseBody)
 			}))
 			defer server.Close()
 
@@ -199,7 +199,7 @@ func TestGenerateSpeechEmptyResponse(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				if tt.responseBody != nil {
-					w.Write(tt.responseBody)
+					_, _ = w.Write(tt.responseBody)
 				}
 			}))
 			defer server.Close()
@@ -223,7 +223,7 @@ func TestGenerateSpeechEmptyResponse(t *testing.T) {
 func TestGenerateSpeechContextCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("audio data"))
+		_, _ = w.Write([]byte("audio data"))
 	}))
 	defer server.Close()
 
