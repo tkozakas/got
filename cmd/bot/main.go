@@ -70,6 +70,7 @@ func main() {
 	router.Register(cmds.Roulette, telegram.WithRecover(telegram.WithLogging(handlers.HandleRoulette)))
 	router.Register(cmds.Tts, telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
 	router.Register(cmds.Admin, telegram.WithRecover(telegram.WithLogging(handlers.HandleAdmin)))
+	router.Register(cmds.Lang, telegram.WithRecover(telegram.WithLogging(handlers.HandleLang)))
 
 	autoRegister := telegram.NewAutoRegisterMiddleware(svc, router)
 	bot := telegram.NewBot(client, autoRegister)
@@ -98,25 +99,39 @@ func startScheduler(cfg *config.Config, svc *app.Service, client *telegram.Clien
 	_ = sched.Register(scheduler.Job{
 		Name:     "auto_roulette",
 		Schedule: cfg.Schedule.AutoRoulette,
-		Func:     autoRouletteJob(svc, client, t, sentences),
+		Func:     autoRouletteJob(svc, client, t, sentences, cfg.Commands.Roulette),
 	})
 
 	sched.Start()
 	return sched
 }
 
-func autoRouletteJob(svc *app.Service, client *telegram.Client, t *i18n.Translator, sentences *telegram.SentenceProvider) func(ctx context.Context) error {
+func autoRouletteJob(svc *app.Service, client *telegram.Client, defaultT *i18n.Translator, sentences *telegram.SentenceProvider, cmdName string) func(ctx context.Context) error {
+	translators := map[string]*i18n.Translator{
+		"en": i18n.New("en"),
+		"ru": i18n.New("ru"),
+		"lt": i18n.New("lt"),
+		"ja": i18n.New("ja"),
+	}
+
 	return func(ctx context.Context) error {
 		results, err := svc.RunAutoRoulette(ctx)
 		if err != nil {
 			return err
 		}
 
-		alias := t.Get(i18n.KeyRouletteAlias)
 		for _, r := range results {
+			t := translators[r.Language]
+			if t == nil {
+				t = defaultT
+			}
+			lang := r.Language
+			if lang == "" {
+				lang = defaultT.Lang()
+			}
 			winnerName := formatUserLink(r.Winner.User)
-			fallbackMsg := fmt.Sprintf(t.Get(i18n.KeyRouletteAutoWinner), alias, winnerName)
-			if err := sentences.SendSequence(client, r.ChatID, alias, winnerName, fallbackMsg); err != nil {
+			fallbackMsg := fmt.Sprintf(t.Get(i18n.KeyRouletteAutoWinner), cmdName, winnerName)
+			if err := sentences.SendSequence(client, r.ChatID, lang, cmdName, winnerName, fallbackMsg); err != nil {
 				slog.Error("Failed to send auto roulette result", "chat", r.ChatID, "error", err)
 			}
 		}
@@ -173,6 +188,7 @@ func registerBotCommands(client *telegram.Client, t *i18n.Translator, cmds *conf
 		{Command: cmds.Fact, Description: t.Get(i18n.KeyCmdFact)},
 		{Command: cmds.Roulette, Description: t.Get(i18n.KeyCmdRoulette)},
 		{Command: cmds.Tts, Description: t.Get(i18n.KeyCmdTts)},
+		{Command: cmds.Lang, Description: t.Get(i18n.KeyCmdLang)},
 	}
 
 	if err := client.SetMyCommands(commands); err != nil {

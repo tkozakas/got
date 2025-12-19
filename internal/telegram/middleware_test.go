@@ -31,6 +31,14 @@ func (m *mockChatRepo) ListAll(ctx context.Context) ([]*model.Chat, error) {
 	return nil, nil
 }
 
+func (m *mockChatRepo) SetLanguage(ctx context.Context, chatID int64, language string) error {
+	return nil
+}
+
+func (m *mockChatRepo) GetLanguage(ctx context.Context, chatID int64) (string, error) {
+	return "", nil
+}
+
 type mockUserRepo struct {
 	saveFunc      func(ctx context.Context, user *model.User) error
 	addToChatFunc func(ctx context.Context, userID, chatID int64) error

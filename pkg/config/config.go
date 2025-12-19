@@ -25,6 +25,7 @@ const (
 	defaultCmdRoulette = "roulette"
 	defaultCmdTts      = "tts"
 	defaultCmdAdmin    = "admin"
+	defaultCmdLang     = "lang"
 )
 
 type Config struct {
@@ -58,6 +59,7 @@ type CommandsConfig struct {
 	Roulette string `yaml:"roulette"`
 	Tts      string `yaml:"tts"`
 	Admin    string `yaml:"admin"`
+	Lang     string `yaml:"lang"`
 }
 
 func Load() *Config {
@@ -144,6 +146,7 @@ func applyCommandOverrides(cfg *Config) {
 	cfg.Commands.Roulette = getEnvOrDefaultWithFallback("CMD_ROULETTE", cfg.Commands.Roulette, defaultCmdRoulette)
 	cfg.Commands.Tts = getEnvOrDefaultWithFallback("CMD_TTS", cfg.Commands.Tts, defaultCmdTts)
 	cfg.Commands.Admin = getEnvOrDefaultWithFallback("CMD_ADMIN", cfg.Commands.Admin, defaultCmdAdmin)
+	cfg.Commands.Lang = getEnvOrDefaultWithFallback("CMD_LANG", cfg.Commands.Lang, defaultCmdLang)
 }
 
 func getEnvOrDefaultWithFallback(envKey, yamlValue, defaultValue string) string {
@@ -170,6 +173,7 @@ func setDefaults(cfg *Config) {
 	cfg.Commands.Roulette = defaultCmdRoulette
 	cfg.Commands.Tts = defaultCmdTts
 	cfg.Commands.Admin = defaultCmdAdmin
+	cfg.Commands.Lang = defaultCmdLang
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

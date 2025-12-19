@@ -9,8 +9,9 @@ import (
 )
 
 type RouletteResult struct {
-	ChatID int64
-	Winner *model.Stat
+	ChatID   int64
+	Language string
+	Winner   *model.Stat
 }
 
 func (s *Service) GetOrCreateStat(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error) {
@@ -97,7 +98,7 @@ func (s *Service) RunAutoRoulette(ctx context.Context) ([]RouletteResult, error)
 	var results []RouletteResult
 
 	for _, chat := range chats {
-		result, ok := s.runRouletteForChat(ctx, chat.ChatID, year)
+		result, ok := s.runRouletteForChat(ctx, chat, year)
 		if ok {
 			results = append(results, result)
 		}
@@ -106,26 +107,26 @@ func (s *Service) RunAutoRoulette(ctx context.Context) ([]RouletteResult, error)
 	return results, nil
 }
 
-func (s *Service) runRouletteForChat(ctx context.Context, chatID int64, year int) (RouletteResult, bool) {
-	existing, err := s.GetTodayWinner(ctx, chatID, year)
+func (s *Service) runRouletteForChat(ctx context.Context, chat *model.Chat, year int) (RouletteResult, bool) {
+	existing, err := s.GetTodayWinner(ctx, chat.ChatID, year)
 	if err != nil {
-		slog.Error("failed to check existing winner", "chat", chatID, "error", err)
+		slog.Error("failed to check existing winner", "chat", chat.ChatID, "error", err)
 		return RouletteResult{}, false
 	}
 	if existing != nil {
 		return RouletteResult{}, false
 	}
 
-	winner, err := s.SelectRandomWinner(ctx, chatID, year)
+	winner, err := s.SelectRandomWinner(ctx, chat.ChatID, year)
 	if err != nil {
-		slog.Error("failed to select winner", "chat", chatID, "error", err)
+		slog.Error("failed to select winner", "chat", chat.ChatID, "error", err)
 		return RouletteResult{}, false
 	}
 	if winner == nil {
 		return RouletteResult{}, false
 	}
 
-	return RouletteResult{ChatID: chatID, Winner: winner}, true
+	return RouletteResult{ChatID: chat.ChatID, Language: chat.Language, Winner: winner}, true
 }
 
 func (s *Service) ResetTodayWinner(ctx context.Context, chatID int64, year int) error {

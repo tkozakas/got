@@ -3,7 +3,8 @@
 -- Chats table
 CREATE TABLE IF NOT EXISTS chats (
     chat_id BIGINT PRIMARY KEY,
-    chat_name VARCHAR(255) NOT NULL DEFAULT ''
+    chat_name VARCHAR(255) NOT NULL DEFAULT '',
+    language VARCHAR(10) NOT NULL DEFAULT ''
 );
 
 -- Users table

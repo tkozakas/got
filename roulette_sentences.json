@@ -1,84 +1,230 @@
 {
-  "groups": [
-    {
-      "id": "dramatic_satellite",
-      "sentences": [
-        "So... who is today's *%s*?",
-        "_Military satellite launched, access codes inside..._",
-        "_No way!_",
-        "Today's adorable *%s* is %s"
-      ]
-    },
-    {
-      "id": "police",
-      "sentences": [
-        "*Woop-woop!* That's the sound of da *%s-police*!",
-        "_(Grumbling) Could've been doing actual work instead_",
-        "_Capturing the suspect..._",
-        "WHOOSH AND YOU'RE THE *%s* %s"
-      ]
-    },
-    {
-      "id": "search_mode",
-      "sentences": [
-        "_Initiating search_ for today's *%s*...",
-        "_Military satellite launched, access codes inside..._",
-        "_What have we become..._",
-        "What? Where? When? And you're today's *%s* %s"
-      ]
-    },
-    {
-      "id": "magic_spell",
-      "sentences": [
-        "_Let's do some magic..._",
-        "_Sleepily looking at papers_",
-        "_Capturing the suspect..._",
-        "Well aren't you a *%s* %s"
-      ]
-    },
-    {
-      "id": "grumpy_game",
-      "sentences": [
-        "_Playing your games again? Fine..._",
-        "_I'm in danger, systems damaged!_",
-        "Aha! Congratulations! Today you're the *%s* %s"
-      ]
-    },
-    {
-      "id": "sleepy_search",
-      "sentences": [
-        "_Where is he..._",
-        "_Oho-ho..._",
-        "_Why did you wake me up..._",
-        "And today's wonderful person is... oh wait, error, just a *%s* %s"
-      ]
-    },
-    {
-      "id": "system_hack",
-      "sentences": [
-        "_System breached. Damage sustained. Countermeasures initiated._",
-        "_Sleepily looking at papers_",
-        "_What have we become..._",
-        "WHOOSH AND YOU'RE THE *%s* %s"
-      ]
-    },
-    {
-      "id": "script_run",
-      "sentences": [
-        "_RUNNING 'TYPIDOR.SH'..._",
-        "_Military satellite launched, access codes inside..._",
-        "_High priority to mobile unit._",
-        "Aha! Congratulations! Today you're the *%s* %s"
-      ]
-    },
-    {
-      "id": "curious_check",
-      "sentences": [
-        "_What do we have here?_",
-        "_Come on, let's see who's cool..._",
-        "_What have we become..._",
-        "WHOOSH AND YOU'RE THE *%s* %s"
-      ]
-    }
-  ]
+  "en": {
+    "groups": [
+      {
+        "id": "dramatic_satellite",
+        "sentences": [
+          "So... who is today's *%s*?",
+          "_Military satellite launched, access codes inside..._",
+          "_No way!_",
+          "Today's adorable *%s* is %s"
+        ]
+      },
+      {
+        "id": "police",
+        "sentences": [
+          "*Woop-woop!* That's the sound of da *%s-police*!",
+          "_(Grumbling) Could've been doing actual work instead_",
+          "_Capturing the suspect..._",
+          "WHOOSH AND YOU'RE THE *%s* %s"
+        ]
+      },
+      {
+        "id": "search_mode",
+        "sentences": [
+          "_Initiating search_ for today's *%s*...",
+          "_Military satellite launched, access codes inside..._",
+          "_What have we become..._",
+          "What? Where? When? And you're today's *%s* %s"
+        ]
+      },
+      {
+        "id": "magic_spell",
+        "sentences": [
+          "_Let's do some magic..._",
+          "_Sleepily looking at papers_",
+          "_Capturing the suspect..._",
+          "Well aren't you a *%s* %s"
+        ]
+      },
+      {
+        "id": "grumpy_game",
+        "sentences": [
+          "_Playing your games again? Fine..._",
+          "_I'm in danger, systems damaged!_",
+          "Aha! Congratulations! Today you're the *%s* %s"
+        ]
+      },
+      {
+        "id": "sleepy_search",
+        "sentences": [
+          "_Where is he..._",
+          "_Oho-ho..._",
+          "_Why did you wake me up..._",
+          "And today's wonderful person is... oh wait, error, just a *%s* %s"
+        ]
+      }
+    ]
+  },
+  "ru": {
+    "groups": [
+      {
+        "id": "dramatic_satellite",
+        "sentences": [
+          "Итак... кто сегодняшний *%s*?",
+          "_Военный спутник запущен, коды доступа внутри..._",
+          "_Не может быть!_",
+          "Сегодняшний милый *%s* — это %s"
+        ]
+      },
+      {
+        "id": "police",
+        "sentences": [
+          "*Вуп-вуп!* Это звук *%s-полиции*!",
+          "_(Бурча) Мог бы делать настоящую работу..._",
+          "_Захват подозреваемого..._",
+          "ВУХ И ТЫ *%s* %s"
+        ]
+      },
+      {
+        "id": "search_mode",
+        "sentences": [
+          "_Начинаю поиск_ сегодняшнего *%s*...",
+          "_Военный спутник запущен, коды доступа внутри..._",
+          "_Во что мы превратились..._",
+          "Что? Где? Когда? И ты сегодняшний *%s* %s"
+        ]
+      },
+      {
+        "id": "magic_spell",
+        "sentences": [
+          "_Немного магии..._",
+          "_Сонно смотрю на бумаги_",
+          "_Захват подозреваемого..._",
+          "Ну ты и *%s* %s"
+        ]
+      },
+      {
+        "id": "grumpy_game",
+        "sentences": [
+          "_Опять в свои игры играете? Ладно..._",
+          "_Я в опасности, системы повреждены!_",
+          "Ага! Поздравляю! Сегодня ты *%s* %s"
+        ]
+      },
+      {
+        "id": "sleepy_search",
+        "sentences": [
+          "_Где же он..._",
+          "_Охо-хо..._",
+          "_Зачем разбудили..._",
+          "И сегодняшний замечательный человек... ой, ошибка, просто *%s* %s"
+        ]
+      }
+    ]
+  },
+  "lt": {
+    "groups": [
+      {
+        "id": "dramatic_satellite",
+        "sentences": [
+          "Taigi... kas šiandienos *%s*?",
+          "_Karinis palydovas paleistas, prieigos kodai viduje..._",
+          "_Negali būti!_",
+          "Šiandienos mielas *%s* yra %s"
+        ]
+      },
+      {
+        "id": "police",
+        "sentences": [
+          "*Vup-vup!* Tai *%s-policijos* garsas!",
+          "_(Murma) Galėjau dirbti tikrą darbą..._",
+          "_Sulaikomas įtariamasis..._",
+          "ŠVYST IR TU *%s* %s"
+        ]
+      },
+      {
+        "id": "search_mode",
+        "sentences": [
+          "_Pradedama paieška_ šiandienos *%s*...",
+          "_Karinis palydovas paleistas, prieigos kodai viduje..._",
+          "_Kuo mes tapome..._",
+          "Kas? Kur? Kada? Ir tu šiandienos *%s* %s"
+        ]
+      },
+      {
+        "id": "magic_spell",
+        "sentences": [
+          "_Truputį magijos..._",
+          "_Mieguistai žiūriu į popierius_",
+          "_Sulaikomas įtariamasis..._",
+          "Na tu ir *%s* %s"
+        ]
+      },
+      {
+        "id": "grumpy_game",
+        "sentences": [
+          "_Vėl žaidžiat savo žaidimus? Gerai..._",
+          "_Aš pavojuje, sistemos pažeistos!_",
+          "Aha! Sveikinu! Šiandien tu *%s* %s"
+        ]
+      },
+      {
+        "id": "sleepy_search",
+        "sentences": [
+          "_Kur jis..._",
+          "_Oho-ho..._",
+          "_Kam pažadinot..._",
+          "Ir šiandienos nuostabus žmogus... ai, klaida, tiesiog *%s* %s"
+        ]
+      }
+    ]
+  },
+  "ja": {
+    "groups": [
+      {
+        "id": "dramatic_satellite",
+        "sentences": [
+          "さて...今日の*%s*は誰？",
+          "_軍事衛星発射、アクセスコード内部..._",
+          "_まさか！_",
+          "今日の可愛い*%s*は%s"
+        ]
+      },
+      {
+        "id": "police",
+        "sentences": [
+          "*ウーウー！* *%s警察*の音だ！",
+          "_(ブツブツ) 本当の仕事ができたのに..._",
+          "_容疑者を確保中..._",
+          "シュッと君は*%s* %s"
+        ]
+      },
+      {
+        "id": "search_mode",
+        "sentences": [
+          "_今日の*%s*を検索中..._",
+          "_軍事衛星発射、アクセスコード内部..._",
+          "_私たちは何になったのか..._",
+          "何？どこ？いつ？そして君が今日の*%s* %s"
+        ]
+      },
+      {
+        "id": "magic_spell",
+        "sentences": [
+          "_魔法をかけよう..._",
+          "_眠そうに書類を見る_",
+          "_容疑者を確保中..._",
+          "まあ君は*%s* %s"
+        ]
+      },
+      {
+        "id": "grumpy_game",
+        "sentences": [
+          "_また遊びか？まあいい..._",
+          "_危険だ、システム損傷！_",
+          "あは！おめでとう！今日君は*%s* %s"
+        ]
+      },
+      {
+        "id": "sleepy_search",
+        "sentences": [
+          "_どこだ..._",
+          "_おほほ..._",
+          "_なんで起こした..._",
+          "そして今日の素晴らしい人は...あ、エラー、ただの*%s* %s"
+        ]
+      }
+    ]
+  }
 }

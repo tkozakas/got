@@ -5,6 +5,7 @@ import "time"
 type Chat struct {
 	ChatID   int64   `json:"chat_id"`
 	ChatName string  `json:"chat_name"`
+	Language string  `json:"language"`
 	Users    []*User `json:"users"`
 }
 

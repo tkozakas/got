@@ -9,6 +9,8 @@ type ChatRepository interface {
 	Save(ctx context.Context, chat *model.Chat) error
 	Get(ctx context.Context, chatID int64) (*model.Chat, error)
 	ListAll(ctx context.Context) ([]*model.Chat, error)
+	SetLanguage(ctx context.Context, chatID int64, language string) error
+	GetLanguage(ctx context.Context, chatID int64) (string, error)
 }
 
 type UserRepository interface {

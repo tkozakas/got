@@ -7,9 +7,11 @@ import (
 )
 
 type MockChatRepository struct {
-	SaveFunc    func(ctx context.Context, chat *model.Chat) error
-	GetFunc     func(ctx context.Context, chatID int64) (*model.Chat, error)
-	ListAllFunc func(ctx context.Context) ([]*model.Chat, error)
+	SaveFunc        func(ctx context.Context, chat *model.Chat) error
+	GetFunc         func(ctx context.Context, chatID int64) (*model.Chat, error)
+	ListAllFunc     func(ctx context.Context) ([]*model.Chat, error)
+	SetLanguageFunc func(ctx context.Context, chatID int64, language string) error
+	GetLanguageFunc func(ctx context.Context, chatID int64) (string, error)
 }
 
 func (m *MockChatRepository) Save(ctx context.Context, chat *model.Chat) error {
@@ -23,6 +25,18 @@ func (m *MockChatRepository) ListAll(ctx context.Context) ([]*model.Chat, error)
 		return m.ListAllFunc(ctx)
 	}
 	return nil, nil
+}
+func (m *MockChatRepository) SetLanguage(ctx context.Context, chatID int64, language string) error {
+	if m.SetLanguageFunc != nil {
+		return m.SetLanguageFunc(ctx, chatID, language)
+	}
+	return nil
+}
+func (m *MockChatRepository) GetLanguage(ctx context.Context, chatID int64) (string, error) {
+	if m.GetLanguageFunc != nil {
+		return m.GetLanguageFunc(ctx, chatID)
+	}
+	return "", nil
 }
 
 type MockUserRepository struct {

@@ -8,10 +8,17 @@ import (
 
 func TestNewSentenceProviderFromFile_ValidFile(t *testing.T) {
 	content := `{
-		"groups": [
-			{"id": "group1", "sentences": ["Hello", "World"]},
-			{"id": "group2", "sentences": ["Foo", "Bar", "Baz"]}
-		]
+		"en": {
+			"groups": [
+				{"id": "group1", "sentences": ["Hello", "World"]},
+				{"id": "group2", "sentences": ["Foo", "Bar", "Baz"]}
+			]
+		},
+		"ru": {
+			"groups": [
+				{"id": "group1", "sentences": ["Привет", "Мир"]}
+			]
+		}
 	}`
 	tmpFile := createTempJSONFile(t, content)
 	defer os.Remove(tmpFile)
@@ -21,8 +28,11 @@ func TestNewSentenceProviderFromFile_ValidFile(t *testing.T) {
 	if !provider.HasSentences() {
 		t.Error("expected provider to have sentences")
 	}
-	if len(provider.groups) != 2 {
-		t.Errorf("expected 2 groups, got %d", len(provider.groups))
+	if len(provider.languages) != 2 {
+		t.Errorf("expected 2 languages, got %d", len(provider.languages))
+	}
+	if len(provider.languages["en"]) != 2 {
+		t.Errorf("expected 2 English groups, got %d", len(provider.languages["en"]))
 	}
 }
 
@@ -46,7 +56,7 @@ func TestNewSentenceProviderFromFile_InvalidJSON(t *testing.T) {
 }
 
 func TestNewSentenceProviderFromFile_EmptyGroups(t *testing.T) {
-	content := `{"groups": []}`
+	content := `{"en": {"groups": []}}`
 	tmpFile := createTempJSONFile(t, content)
 	defer os.Remove(tmpFile)
 
@@ -59,15 +69,17 @@ func TestNewSentenceProviderFromFile_EmptyGroups(t *testing.T) {
 
 func TestSentenceProvider_GetRandomGroup(t *testing.T) {
 	content := `{
-		"groups": [
-			{"id": "only_group", "sentences": ["One", "Two", "Three"]}
-		]
+		"en": {
+			"groups": [
+				{"id": "only_group", "sentences": ["One", "Two", "Three"]}
+			]
+		}
 	}`
 	tmpFile := createTempJSONFile(t, content)
 	defer os.Remove(tmpFile)
 
 	provider := NewSentenceProviderFromFile(tmpFile)
-	group := provider.GetRandomGroup()
+	group := provider.GetRandomGroup("en")
 
 	if group == nil {
 		t.Fatal("expected non-nil group")
@@ -80,9 +92,31 @@ func TestSentenceProvider_GetRandomGroup(t *testing.T) {
 	}
 }
 
+func TestSentenceProvider_GetRandomGroup_FallbackToEnglish(t *testing.T) {
+	content := `{
+		"en": {
+			"groups": [
+				{"id": "english", "sentences": ["Hello"]}
+			]
+		}
+	}`
+	tmpFile := createTempJSONFile(t, content)
+	defer os.Remove(tmpFile)
+
+	provider := NewSentenceProviderFromFile(tmpFile)
+	group := provider.GetRandomGroup("ja")
+
+	if group == nil {
+		t.Fatal("expected non-nil group (fallback to English)")
+	}
+	if group[0] != "Hello" {
+		t.Errorf("expected fallback to English, got %v", group)
+	}
+}
+
 func TestSentenceProvider_GetRandomGroup_Empty(t *testing.T) {
-	provider := &SentenceProvider{groups: []SentenceGroup{}}
-	group := provider.GetRandomGroup()
+	provider := &SentenceProvider{languages: make(map[string][]SentenceGroup)}
+	group := provider.GetRandomGroup("en")
 
 	if group != nil {
 		t.Errorf("expected nil for empty provider, got %v", group)
@@ -91,24 +125,24 @@ func TestSentenceProvider_GetRandomGroup_Empty(t *testing.T) {
 
 func TestSentenceProvider_HasSentences(t *testing.T) {
 	tests := []struct {
-		name   string
-		groups []SentenceGroup
-		want   bool
+		name      string
+		languages map[string][]SentenceGroup
+		want      bool
 	}{
 		{
-			name:   "emptyGroups",
-			groups: []SentenceGroup{},
-			want:   false,
+			name:      "emptyLanguages",
+			languages: make(map[string][]SentenceGroup),
+			want:      false,
 		},
 		{
-			name:   "nilGroups",
-			groups: nil,
-			want:   false,
+			name:      "nilLanguages",
+			languages: nil,
+			want:      false,
 		},
 		{
-			name: "hasGroups",
-			groups: []SentenceGroup{
-				{ID: "test", Sentences: []string{"Hello"}},
+			name: "hasLanguages",
+			languages: map[string][]SentenceGroup{
+				"en": {{ID: "test", Sentences: []string{"Hello"}}},
 			},
 			want: true,
 		},
@@ -116,7 +150,7 @@ func TestSentenceProvider_HasSentences(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			provider := &SentenceProvider{groups: tt.groups}
+			provider := &SentenceProvider{languages: tt.languages}
 			got := provider.HasSentences()
 			if got != tt.want {
 				t.Errorf("HasSentences() = %v, want %v", got, tt.want)
@@ -126,7 +160,7 @@ func TestSentenceProvider_HasSentences(t *testing.T) {
 }
 
 func TestRandomDelay(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		delay := randomDelay()
 		if delay < minDelay || delay > maxDelay {
 			t.Errorf("randomDelay() = %v, want between %v and %v", delay, minDelay, maxDelay)

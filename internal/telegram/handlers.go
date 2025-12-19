@@ -48,33 +48,43 @@ const (
 )
 
 type BotHandlers struct {
-	client    *Client
-	service   *app.Service
-	gpt       *groq.Client
-	cache     *redis.Client
-	t         *i18n.Translator
-	tts       *tts.Client
-	cmds      *config.CommandsConfig
-	sentences *SentenceProvider
-	adminPass string
+	client      *Client
+	service     *app.Service
+	gpt         *groq.Client
+	cache       *redis.Client
+	t           *i18n.Translator
+	tts         *tts.Client
+	cmds        *config.CommandsConfig
+	sentences   *SentenceProvider
+	adminPass   string
+	defaultLang string
+	translators map[string]*i18n.Translator
 }
 
 func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator, tts *tts.Client, cmds *config.CommandsConfig, adminPass string) *BotHandlers {
+	translators := make(map[string]*i18n.Translator)
+	for _, lang := range []string{"en", "ru", "lt", "ja"} {
+		translators[lang] = i18n.New(lang)
+	}
+
 	return &BotHandlers{
-		client:    client,
-		service:   service,
-		gpt:       gpt,
-		cache:     cache,
-		t:         t,
-		tts:       tts,
-		cmds:      cmds,
-		sentences: NewSentenceProvider(),
-		adminPass: adminPass,
+		client:      client,
+		service:     service,
+		gpt:         gpt,
+		cache:       cache,
+		t:           t,
+		tts:         tts,
+		cmds:        cmds,
+		sentences:   NewSentenceProvider(),
+		adminPass:   adminPass,
+		defaultLang: t.Lang(),
+		translators: translators,
 	}
 }
 
 func (h *BotHandlers) HandleStart(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 
 	if update.Message.Chat != nil {
 		_ = h.service.RegisterChat(ctx, &model.Chat{
@@ -90,11 +100,12 @@ func (h *BotHandlers) HandleStart(ctx context.Context, update *Update) error {
 		}, chatID)
 	}
 
-	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyWelcome))
+	return h.client.SendMessage(chatID, t.Get(i18n.KeyWelcome))
 }
 
 func (h *BotHandlers) HandleHelp(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 
 	commands := []struct {
 		cmd      string
@@ -114,7 +125,7 @@ func (h *BotHandlers) HandleHelp(ctx context.Context, update *Update) error {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(h.t.Get(i18n.KeyHelpHeader))
+	sb.WriteString(t.Get(i18n.KeyHelpHeader))
 	sb.WriteString("\n")
 	for _, c := range commands {
 		if c.excluded {
@@ -124,7 +135,7 @@ func (h *BotHandlers) HandleHelp(ctx context.Context, update *Update) error {
 		if len(c.subCmds) > 0 {
 			subCmdsStr = fmt.Sprintf(" `<%s>`", strings.Join(c.subCmds, ", "))
 		}
-		sb.WriteString(fmt.Sprintf("- `/%s` — %s%s\n", c.cmd, h.t.Get(c.desc), subCmdsStr))
+		sb.WriteString(fmt.Sprintf("- `/%s` — %s%s\n", c.cmd, t.Get(c.desc), subCmdsStr))
 	}
 
 	return h.client.SendMessage(chatID, sb.String())
@@ -132,31 +143,33 @@ func (h *BotHandlers) HandleHelp(ctx context.Context, update *Update) error {
 
 func (h *BotHandlers) HandleFact(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	parts := strings.SplitN(args, " ", 2)
 
 	if len(parts) > 0 && SubCommand(parts[0]) == SubCommandAdd {
 		if len(parts) < 2 {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyFactUsage))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyFactUsage))
 		}
 		if err := h.service.AddFact(ctx, parts[1], chatID); err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyFactError))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyFactError))
 		}
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyFactAdded))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyFactAdded))
 	}
 
 	fact, err := h.service.GetRandomFact(ctx, chatID)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyFactError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyFactError))
 	}
 	if fact == nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyNoFacts))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyNoFacts))
 	}
-	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyFactFormat), fact.Comment))
+	return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyFactFormat), fact.Comment))
 }
 
 func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	parts := strings.Fields(args)
 
@@ -171,41 +184,41 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 			return h.addStickerSet(ctx, chatID, parts[1])
 		}
 		if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.Sticker == nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerUsage))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerUsage))
 		}
 		sticker := update.Message.ReplyToMessage.Sticker
 		if err := h.service.AddSticker(ctx, sticker.FileID, sticker.SetName, chatID); err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerError))
 		}
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerAdded))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerAdded))
 
 	case SubCommandRemove:
 		if len(parts) > 1 {
 			return h.removeStickerSet(ctx, chatID, parts[1])
 		}
 		if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.Sticker == nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerRemoveUsage))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerRemoveUsage))
 		}
 		fileID := update.Message.ReplyToMessage.Sticker.FileID
 		if err := h.service.RemoveSticker(ctx, fileID, chatID); err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerError))
 		}
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerRemoved))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerRemoved))
 
 	case SubCommandList:
 		stickers, err := h.service.ListStickers(ctx, chatID)
 		if err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerError))
 		}
-		return h.client.SendMessage(chatID, h.formatStickerList(stickers))
+		return h.client.SendMessage(chatID, h.formatStickerList(t, stickers))
 
 	default:
 		sticker, err := h.service.GetRandomSticker(ctx, chatID)
 		if err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerError))
 		}
 		if sticker == nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyNoStickers))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeyNoStickers))
 		}
 		return h.client.SendSticker(chatID, sticker.FileID)
 	}
@@ -213,6 +226,7 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 
 func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	parts := strings.Fields(args)
 
@@ -220,28 +234,28 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 		switch SubCommand(parts[0]) {
 		case SubCommandAdd:
 			if len(parts) < 2 {
-				return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeUsage))
+				return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeUsage))
 			}
 			if err := h.service.AddSubreddit(ctx, parts[1], chatID); err != nil {
-				return h.client.SendMessage(chatID, h.t.Get(i18n.KeySubredditError))
+				return h.client.SendMessage(chatID, t.Get(i18n.KeySubredditError))
 			}
-			return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyMemeAdded), parts[1]))
+			return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyMemeAdded), parts[1]))
 
 		case SubCommandRemove:
 			if len(parts) < 2 {
-				return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeUsage))
+				return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeUsage))
 			}
 			if err := h.service.RemoveSubreddit(ctx, parts[1], chatID); err != nil {
-				return h.client.SendMessage(chatID, h.t.Get(i18n.KeySubredditError))
+				return h.client.SendMessage(chatID, t.Get(i18n.KeySubredditError))
 			}
-			return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyMemeRemoved), parts[1]))
+			return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyMemeRemoved), parts[1]))
 
 		case SubCommandList:
 			subs, err := h.service.ListSubreddits(ctx, chatID)
 			if err != nil {
-				return h.client.SendMessage(chatID, h.t.Get(i18n.KeySubredditError))
+				return h.client.SendMessage(chatID, t.Get(i18n.KeySubredditError))
 			}
-			return h.client.SendMessage(chatID, h.formatSubredditList(subs))
+			return h.client.SendMessage(chatID, h.formatSubredditList(t, subs))
 		}
 	}
 
@@ -251,7 +265,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	if len(parts) > 0 {
 		if n, err := strconv.Atoi(parts[0]); err == nil {
 			if n < 1 || n > 5 {
-				return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeCountInvalid))
+				return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeCountInvalid))
 			}
 			count = n
 			if len(parts) > 1 {
@@ -262,7 +276,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 			if len(parts) > 1 {
 				if n, err := strconv.Atoi(parts[1]); err == nil {
 					if n < 1 || n > 5 {
-						return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeCountInvalid))
+						return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeCountInvalid))
 					}
 					count = n
 				}
@@ -276,7 +290,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	} else {
 		sub, err := h.service.GetRandomSubreddit(ctx, chatID)
 		if err != nil {
-			return h.client.SendMessage(chatID, h.t.Get(i18n.KeySubredditError))
+			return h.client.SendMessage(chatID, t.Get(i18n.KeySubredditError))
 		}
 		if sub != nil {
 			subName = sub.Name
@@ -289,7 +303,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 
 	memes, err := h.fetchMemes(ctx, subName, count)
 	if err != nil || len(memes) == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeError)+subName)
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeError)+subName)
 	}
 
 	return h.sendMemes(chatID, memes)
@@ -297,14 +311,15 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 
 func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 
 	if h.gpt == nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptNoKey))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptNoKey))
 	}
 
 	args := update.Message.CommandArguments()
 	if args == "" {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptUsage))
 	}
 
 	parts := strings.SplitN(args, " ", 2)
@@ -333,11 +348,12 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 
 func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	args := update.Message.CommandArguments()
 	parts := strings.SplitN(args, " ", 2)
 
 	if len(parts) == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindUsage))
 	}
 
 	switch SubCommand(parts[0]) {
@@ -351,62 +367,66 @@ func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 }
 
 func (h *BotHandlers) handleRemindList(ctx context.Context, chatID int64) error {
+	t := h.getTranslator(ctx, chatID)
 	reminders, err := h.service.GetPendingReminders(ctx, chatID)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindListError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindListError))
 	}
 	if len(reminders) == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindNoPending))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindNoPending))
 	}
 
-	return h.client.SendMessage(chatID, h.formatReminders(reminders))
+	return h.client.SendMessage(chatID, h.formatReminders(t, reminders))
 }
 
 func (h *BotHandlers) handleRemindDelete(ctx context.Context, chatID int64, parts []string) error {
+	t := h.getTranslator(ctx, chatID)
 	if len(parts) < 2 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleteUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindDeleteUsage))
 	}
 
 	reminderID, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleteUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindDeleteUsage))
 	}
 
 	if err := h.service.DeleteReminder(ctx, reminderID, chatID); err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleteError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindDeleteError))
 	}
 
-	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindDeleted))
+	return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindDeleted))
 }
 
 func (h *BotHandlers) handleRemindAdd(ctx context.Context, chatID int64, userID int64, parts []string) error {
+	t := h.getTranslator(ctx, chatID)
 	if len(parts) < 2 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindUsage))
 	}
 
 	duration, err := ParseDuration(parts[0])
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRemindInvalid))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindInvalid))
 	}
 
 	if err := h.service.AddReminder(ctx, chatID, userID, parts[1], duration); err != nil {
 		return h.client.SendMessage(chatID, fmt.Sprintf("Error: %v", err))
 	}
 
-	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyRemindSuccess), duration))
+	return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyRemindSuccess), duration))
 }
 
-func (h *BotHandlers) formatReminders(reminders []*model.Reminder) string {
+func (h *BotHandlers) formatReminders(t *i18n.Translator, reminders []*model.Reminder) string {
 	var sb strings.Builder
-	sb.WriteString(h.t.Get(i18n.KeyRemindHeader))
+	sb.WriteString(t.Get(i18n.KeyRemindHeader))
 	for _, r := range reminders {
-		sb.WriteString(fmt.Sprintf(h.t.Get(i18n.KeyRemindFormat), r.ReminderID, r.Message, r.RemindAt.Format(time.RFC822)))
+		sb.WriteString(fmt.Sprintf(t.Get(i18n.KeyRemindFormat), r.ReminderID, r.Message, r.RemindAt.Format(time.RFC822)))
 	}
 	return sb.String()
 }
 
 func (h *BotHandlers) HandleRoulette(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	userID := update.Message.From.ID
 	currentYear := time.Now().Year()
 
@@ -439,62 +459,62 @@ func (h *BotHandlers) HandleRoulette(ctx context.Context, update *Update) error 
 		if year, err := strconv.Atoi(parts[0]); err == nil {
 			return h.handleRouletteYear(ctx, chatID, year)
 		}
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRouletteUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteUsage))
 	}
 }
 
 func (h *BotHandlers) handleRouletteSpin(ctx context.Context, chatID int64, year int) error {
-	alias := h.t.Get(i18n.KeyRouletteAlias)
+	t := h.getTranslator(ctx, chatID)
+	alias := h.cmds.Roulette
 
 	winner, err := h.service.GetTodayWinner(ctx, chatID, year)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRouletteNoStats))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoStats))
 	}
 
 	if winner != nil {
-		msg := fmt.Sprintf(h.t.Get(i18n.KeyRouletteWinnerExists), alias, h.formatUser(winner.User), winner.Score)
+		msg := fmt.Sprintf(t.Get(i18n.KeyRouletteWinnerExists), alias, h.formatUser(winner.User), winner.Score)
 		return h.client.SendMessage(chatID, msg)
 	}
 
 	winner, err = h.service.SelectRandomWinner(ctx, chatID, year)
 	if err != nil || winner == nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRouletteNoUsers))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoUsers))
 	}
 
-	return h.displayNewWinnerSequence(ctx, chatID, alias, winner)
-}
-
-func (h *BotHandlers) displayNewWinnerSequence(ctx context.Context, chatID int64, alias string, winner *model.Stat) error {
 	winnerName := h.formatUser(winner.User)
-	fallbackMsg := fmt.Sprintf(h.t.Get(i18n.KeyRouletteWinnerNew), alias, winnerName)
-	return h.sentences.SendSequence(h.client, chatID, alias, winnerName, fallbackMsg)
+	fallbackMsg := fmt.Sprintf(t.Get(i18n.KeyRouletteWinnerNew), alias, winnerName)
+	return h.sentences.SendSequence(h.client, chatID, t.Lang(), alias, winnerName, fallbackMsg)
 }
 
 func (h *BotHandlers) handleRouletteYear(ctx context.Context, chatID int64, year int) error {
+	t := h.getTranslator(ctx, chatID)
 	stats, err := h.service.GetStatsByYear(ctx, chatID, year)
 	if err != nil || len(stats) == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRouletteNoStats))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoStats))
 	}
 
-	return h.client.SendMessage(chatID, h.formatStats(stats, fmt.Sprintf(h.t.Get(i18n.KeyRouletteHeader), year)))
+	return h.client.SendMessage(chatID, h.formatStats(t, stats, fmt.Sprintf(t.Get(i18n.KeyRouletteHeader), year)))
 }
 
 func (h *BotHandlers) handleRouletteAll(ctx context.Context, chatID int64) error {
+	t := h.getTranslator(ctx, chatID)
 	stats, err := h.service.GetAllStats(ctx, chatID)
 	if err != nil || len(stats) == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyRouletteNoStats))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoStats))
 	}
 
 	aggregated := h.aggregateStats(stats)
-	return h.client.SendMessage(chatID, h.formatStats(aggregated, h.t.Get(i18n.KeyRouletteHeaderAll)))
+	return h.client.SendMessage(chatID, h.formatStats(t, aggregated, t.Get(i18n.KeyRouletteHeaderAll)))
 }
 
 func (h *BotHandlers) handleGPTModels(ctx context.Context, chatID int64) error {
+	t := h.getTranslator(ctx, chatID)
 	currentModel := h.getChatModel(ctx, chatID)
 	models := h.fetchModelsWithFallback(ctx)
 
 	var sb strings.Builder
-	sb.WriteString(h.t.Get(i18n.KeyGptModelsHeader))
+	sb.WriteString(t.Get(i18n.KeyGptModelsHeader))
 	for i, m := range models {
 		prefix := "  "
 		if m == currentModel {
@@ -514,12 +534,13 @@ func (h *BotHandlers) fetchModelsWithFallback(ctx context.Context) []string {
 }
 
 func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, modelInput string) error {
+	t := h.getTranslator(ctx, chatID)
 	modelName := h.resolveModelName(ctx, modelInput)
 
 	if err := h.gpt.ValidateModel(modelName); err != nil {
 		models := h.gpt.ListModels()
 		var sb strings.Builder
-		sb.WriteString(h.t.Get(i18n.KeyGptModelInvalid))
+		sb.WriteString(t.Get(i18n.KeyGptModelInvalid))
 		for i, m := range models {
 			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, m))
 		}
@@ -530,7 +551,7 @@ func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, model
 		_ = h.cache.SetModel(ctx, chatID, modelName)
 	}
 
-	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyGptModelSet), modelName))
+	return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyGptModelSet), modelName))
 }
 
 func (h *BotHandlers) resolveModelName(ctx context.Context, input string) string {
@@ -563,27 +584,29 @@ func (h *BotHandlers) startTyping(ctx context.Context, chatID int64, action stri
 }
 
 func (h *BotHandlers) handleGPTClear(ctx context.Context, chatID int64) error {
+	t := h.getTranslator(ctx, chatID)
 	if h.cache != nil {
 		_ = h.cache.ClearHistory(ctx, chatID)
 	}
-	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptCleared))
+	return h.client.SendMessage(chatID, t.Get(i18n.KeyGptCleared))
 }
 
 func (h *BotHandlers) handleGPTMemory(ctx context.Context, chatID int64) error {
+	t := h.getTranslator(ctx, chatID)
 	if h.cache == nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptMemoryNoRedis))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptMemoryNoRedis))
 	}
 
 	history, err := h.cache.GetHistory(ctx, chatID)
 	if err != nil || len(history) == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptMemoryEmpty))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptMemoryEmpty))
 	}
 
 	_ = h.client.SendChatAction(chatID, ActionUploadDocument)
 
 	content := formatHistoryAsText(history)
 	filename := fmt.Sprintf("chat_history_%d.txt", chatID)
-	caption := h.t.Get(i18n.KeyGptMemoryCaption)
+	caption := t.Get(i18n.KeyGptMemoryCaption)
 
 	return h.client.SendDocument(chatID, []byte(content), filename, caption)
 }
@@ -600,8 +623,9 @@ func formatHistoryAsText(history []groq.Message) string {
 }
 
 func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []string) error {
+	t := h.getTranslator(ctx, chatID)
 	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptImageUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptImageUsage))
 	}
 
 	typing := h.startTyping(ctx, chatID, ActionUploadPhoto)
@@ -623,6 +647,7 @@ func buildImageURL(prompt string) string {
 }
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username string, prompt string) error {
+	t := h.getTranslator(ctx, chatID)
 	typing := h.startTyping(ctx, chatID, ActionTyping)
 	defer typing.Stop()
 
@@ -636,7 +661,7 @@ func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username 
 
 	response, err := h.gpt.ChatWithModel(ctx, formattedPrompt, history, model)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptError))
 	}
 
 	if h.cache != nil {
@@ -663,7 +688,7 @@ func (h *BotHandlers) formatUser(user *model.User) string {
 	return fmt.Sprintf("[%s](tg://user?id=%d)", name, user.UserID)
 }
 
-func (h *BotHandlers) formatStats(stats []*model.Stat, header string) string {
+func (h *BotHandlers) formatStats(t *i18n.Translator, stats []*model.Stat, header string) string {
 	var sb strings.Builder
 	sb.WriteString("*" + header + "*\n\n")
 
@@ -672,17 +697,17 @@ func (h *BotHandlers) formatStats(stats []*model.Stat, header string) string {
 		if stat.IsWinner {
 			username = "👑 " + username
 		}
-		sb.WriteString(fmt.Sprintf(h.t.Get(i18n.KeyRouletteUser), i+1, username, stat.Score))
+		sb.WriteString(fmt.Sprintf(t.Get(i18n.KeyRouletteUser), i+1, username, stat.Score))
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(fmt.Sprintf("\n*%s*", fmt.Sprintf(h.t.Get(i18n.KeyRouletteFooter), len(stats))))
+	sb.WriteString(fmt.Sprintf("\n*%s*", fmt.Sprintf(t.Get(i18n.KeyRouletteFooter), len(stats))))
 	return sb.String()
 }
 
-func (h *BotHandlers) formatSubredditList(subs []*model.Subreddit) string {
+func (h *BotHandlers) formatSubredditList(t *i18n.Translator, subs []*model.Subreddit) string {
 	var sb strings.Builder
-	sb.WriteString(h.t.Get(i18n.KeyMemeListHeader))
+	sb.WriteString(t.Get(i18n.KeyMemeListHeader))
 	for _, s := range subs {
 		sb.WriteString("- `r/" + s.Name + "`\n")
 	}
@@ -690,9 +715,10 @@ func (h *BotHandlers) formatSubredditList(subs []*model.Subreddit) string {
 }
 
 func (h *BotHandlers) addStickerSet(ctx context.Context, chatID int64, setName string) error {
+	t := h.getTranslator(ctx, chatID)
 	stickerSet, err := h.client.GetStickerSet(setName)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerSetNotFound))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerSetNotFound))
 	}
 
 	added := 0
@@ -702,23 +728,24 @@ func (h *BotHandlers) addStickerSet(ctx context.Context, chatID int64, setName s
 		}
 	}
 
-	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyStickerSetAdded), stickerSet.Title, added))
+	return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyStickerSetAdded), stickerSet.Title, added))
 }
 
 func (h *BotHandlers) removeStickerSet(ctx context.Context, chatID int64, setName string) error {
+	t := h.getTranslator(ctx, chatID)
 	removed, err := h.service.RemoveStickerSet(ctx, setName, chatID)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerError))
 	}
 	if removed == 0 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerSetNotFound))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerSetNotFound))
 	}
-	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyStickerSetRemoved), setName, removed))
+	return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyStickerSetRemoved), setName, removed))
 }
 
-func (h *BotHandlers) formatStickerList(stickers []*model.Sticker) string {
+func (h *BotHandlers) formatStickerList(t *i18n.Translator, stickers []*model.Sticker) string {
 	if len(stickers) == 0 {
-		return h.t.Get(i18n.KeyNoStickers)
+		return t.Get(i18n.KeyNoStickers)
 	}
 
 	names := make(map[string]struct{})
@@ -729,15 +756,15 @@ func (h *BotHandlers) formatStickerList(stickers []*model.Sticker) string {
 	}
 
 	if len(names) == 0 {
-		return fmt.Sprintf(h.t.Get(i18n.KeyStickerCount), len(stickers))
+		return fmt.Sprintf(t.Get(i18n.KeyStickerCount), len(stickers))
 	}
 
 	var sb strings.Builder
-	sb.WriteString(h.t.Get(i18n.KeyStickerListHeader))
+	sb.WriteString(t.Get(i18n.KeyStickerListHeader))
 	for name := range names {
 		sb.WriteString("- `" + name + "`\n")
 	}
-	sb.WriteString(fmt.Sprintf("\n_%s_", fmt.Sprintf(h.t.Get(i18n.KeyStickerCount), len(stickers))))
+	sb.WriteString(fmt.Sprintf("\n_%s_", fmt.Sprintf(t.Get(i18n.KeyStickerCount), len(stickers))))
 	return sb.String()
 }
 
@@ -778,14 +805,15 @@ func (h *BotHandlers) aggregateStats(stats []*model.Stat) []*model.Stat {
 
 func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	text := update.Message.CommandArguments()
 
 	if text == "" {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsUsage))
 	}
 
 	if h.tts == nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
 	}
 
 	typing := h.startTyping(ctx, chatID, ActionRecordVoice)
@@ -793,7 +821,7 @@ func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
 
 	audioData, err := h.tts.GenerateSpeech(ctx, text)
 	if err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
 	}
 
 	return h.client.SendVoice(chatID, audioData, "speech.mp3")
@@ -848,18 +876,19 @@ func isAnimatedURL(url string) bool {
 
 func (h *BotHandlers) HandleAdmin(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
 	userID := update.Message.From.ID
 	isPrivate := update.Message.Chat.Type == "private"
 
 	if h.adminPass == "" {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminNoPass))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminNoPass))
 	}
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	parts := strings.SplitN(args, " ", 2)
 
 	if len(parts) == 0 || parts[0] == "" {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
 	}
 
 	switch SubCommand(parts[0]) {
@@ -868,43 +897,45 @@ func (h *BotHandlers) HandleAdmin(ctx context.Context, update *Update) error {
 	case SubCommandReset:
 		return h.handleAdminReset(ctx, chatID, userID)
 	default:
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
 	}
 }
 
 func (h *BotHandlers) handleAdminLogin(ctx context.Context, chatID, userID int64, parts []string, isPrivate bool) error {
+	t := h.getTranslator(ctx, chatID)
 	if !isPrivate {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminDMOnly))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminDMOnly))
 	}
 
 	if len(parts) < 2 {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUsage))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
 	}
 
 	password := strings.TrimSpace(parts[1])
 	if password != h.adminPass {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUnauthorized))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUnauthorized))
 	}
 
 	if h.cache != nil {
 		_ = h.cache.SetAdminSession(ctx, userID, true)
 	}
 
-	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminLoginSuccess))
+	return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminLoginSuccess))
 }
 
 func (h *BotHandlers) handleAdminReset(ctx context.Context, chatID, userID int64) error {
+	t := h.getTranslator(ctx, chatID)
 	isAdmin, _ := h.isAdmin(ctx, userID)
 	if !isAdmin {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminNotLoggedIn))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminNotLoggedIn))
 	}
 
 	year := time.Now().Year()
 	if err := h.service.ResetTodayWinner(ctx, chatID, year); err != nil {
-		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminResetError))
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminResetError))
 	}
 
-	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminResetSuccess))
+	return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminResetSuccess))
 }
 
 func (h *BotHandlers) isAdmin(ctx context.Context, userID int64) (bool, error) {
@@ -912,4 +943,67 @@ func (h *BotHandlers) isAdmin(ctx context.Context, userID int64) (bool, error) {
 		return false, nil
 	}
 	return h.cache.GetAdminSession(ctx, userID)
+}
+
+var supportedLanguages = []string{"en", "ru", "lt", "ja"}
+
+func (h *BotHandlers) HandleLang(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	args := strings.TrimSpace(update.Message.CommandArguments())
+
+	if args == "" {
+		return h.showCurrentLanguage(ctx, chatID)
+	}
+
+	return h.setLanguage(ctx, chatID, args)
+}
+
+func (h *BotHandlers) showCurrentLanguage(ctx context.Context, chatID int64) error {
+	t := h.getTranslator(ctx, chatID)
+	lang, _ := h.service.GetChatLanguage(ctx, chatID)
+	if lang == "" {
+		lang = h.defaultLang
+	}
+
+	msg := fmt.Sprintf(t.Get(i18n.KeyLangCurrent), lang) + "\n\n" + t.Get(i18n.KeyLangList)
+	return h.client.SendMessage(chatID, msg)
+}
+
+func (h *BotHandlers) setLanguage(ctx context.Context, chatID int64, lang string) error {
+	t := h.getTranslator(ctx, chatID)
+	lang = strings.ToLower(strings.TrimSpace(lang))
+
+	if !isValidLanguage(lang) {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyLangUsage))
+	}
+
+	if err := h.service.SetChatLanguage(ctx, chatID, lang); err != nil {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyLangUsage))
+	}
+
+	newT := h.translators[lang]
+	if newT == nil {
+		newT = t
+	}
+	return h.client.SendMessage(chatID, fmt.Sprintf(newT.Get(i18n.KeyLangSet), lang))
+}
+
+func isValidLanguage(lang string) bool {
+	for _, l := range supportedLanguages {
+		if l == lang {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *BotHandlers) getTranslator(ctx context.Context, chatID int64) *i18n.Translator {
+	lang, _ := h.service.GetChatLanguage(ctx, chatID)
+	if lang == "" {
+		return h.t
+	}
+	if t, ok := h.translators[lang]; ok {
+		return t
+	}
+	return h.t
 }

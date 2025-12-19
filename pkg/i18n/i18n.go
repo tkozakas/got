@@ -101,6 +101,12 @@ const (
 	KeyAdminResetError   Key = "admin_reset_error"
 	KeyAdminNoPass       Key = "admin_no_pass"
 	KeyAdminDMOnly       Key = "admin_dm_only"
+
+	KeyCmdLang     Key = "cmd_lang"
+	KeyLangUsage   Key = "lang_usage"
+	KeyLangSet     Key = "lang_set"
+	KeyLangCurrent Key = "lang_current"
+	KeyLangList    Key = "lang_list"
 )
 
 type Translator struct {

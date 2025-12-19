@@ -12,6 +12,7 @@ import (
 
 const (
 	defaultSentencesPath = "roulette_sentences.json"
+	defaultLang          = "en"
 	minDelay             = 700 * time.Millisecond
 	maxDelay             = 1200 * time.Millisecond
 )
@@ -26,7 +27,7 @@ type SentencesFile struct {
 }
 
 type SentenceProvider struct {
-	groups []SentenceGroup
+	languages map[string][]SentenceGroup
 }
 
 func NewSentenceProvider() *SentenceProvider {
@@ -35,7 +36,7 @@ func NewSentenceProvider() *SentenceProvider {
 
 func NewSentenceProviderFromFile(path string) *SentenceProvider {
 	provider := &SentenceProvider{
-		groups: []SentenceGroup{},
+		languages: make(map[string][]SentenceGroup),
 	}
 
 	data, err := os.ReadFile(path)
@@ -44,27 +45,39 @@ func NewSentenceProviderFromFile(path string) *SentenceProvider {
 		return provider
 	}
 
-	var file SentencesFile
-	if err := json.Unmarshal(data, &file); err != nil {
+	var multiLang map[string]SentencesFile
+	if err := json.Unmarshal(data, &multiLang); err != nil {
 		slog.Error("Failed to parse sentences file", "path", path, "error", err)
 		return provider
 	}
 
-	provider.groups = file.Groups
-	slog.Info("Loaded roulette sentences", "groups", len(provider.groups))
+	for lang, file := range multiLang {
+		provider.languages[lang] = file.Groups
+	}
+
+	slog.Info("Loaded roulette sentences", "languages", len(provider.languages))
 	return provider
 }
 
-func (p *SentenceProvider) GetRandomGroup() []string {
-	if len(p.groups) == 0 {
+func (p *SentenceProvider) GetRandomGroup(lang string) []string {
+	groups := p.languages[lang]
+	if len(groups) == 0 {
+		groups = p.languages[defaultLang]
+	}
+	if len(groups) == 0 {
 		return nil
 	}
-	group := p.groups[rand.Intn(len(p.groups))]
+	group := groups[rand.Intn(len(groups))]
 	return group.Sentences
 }
 
 func (p *SentenceProvider) HasSentences() bool {
-	return len(p.groups) > 0
+	for _, groups := range p.languages {
+		if len(groups) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func randomDelay() time.Duration {
@@ -75,8 +88,8 @@ func RandomDelay() time.Duration {
 	return randomDelay()
 }
 
-func (p *SentenceProvider) SendSequence(client *Client, chatID int64, alias, winnerName, fallbackMsg string) error {
-	sentences := p.GetRandomGroup()
+func (p *SentenceProvider) SendSequence(client *Client, chatID int64, lang, alias, winnerName, fallbackMsg string) error {
+	sentences := p.GetRandomGroup(lang)
 	if len(sentences) == 0 {
 		return client.SendMessage(chatID, fallbackMsg)
 	}
