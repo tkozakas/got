@@ -286,7 +286,7 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 	case SubCommandMemory:
 		return h.handleGPTMemory(ctx, chatID)
 	case SubCommandImage:
-		return h.handleGPTImage(chatID, parts)
+		return h.handleGPTImage(ctx, chatID, parts)
 	default:
 		username := ""
 		if update.Message.From != nil {
@@ -498,6 +498,12 @@ func (h *BotHandlers) getChatModel(ctx context.Context, chatID int64) string {
 	return model
 }
 
+func (h *BotHandlers) startTyping(ctx context.Context, chatID int64, action string) *TypingIndicator {
+	indicator := NewTypingIndicator(h.client, chatID)
+	indicator.Start(ctx, action)
+	return indicator
+}
+
 func (h *BotHandlers) handleGPTClear(ctx context.Context, chatID int64) error {
 	if h.cache != nil {
 		_ = h.cache.ClearHistory(ctx, chatID)
@@ -524,21 +530,23 @@ func (h *BotHandlers) handleGPTMemory(ctx context.Context, chatID int64) error {
 	return h.client.SendMessage(chatID, msg)
 }
 
-func (h *BotHandlers) handleGPTImage(chatID int64, parts []string) error {
+func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []string) error {
 	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptImageUsage))
 	}
 
+	typing := h.startTyping(ctx, chatID, ActionUploadPhoto)
+	defer typing.Stop()
+
 	prompt := strings.TrimSpace(parts[1])
 	imageURL := fmt.Sprintf("https://image.pollinations.ai/prompt/%s", url.QueryEscape(prompt))
-
-	_ = h.client.SendChatAction(chatID, ActionUploadPhoto)
 
 	return h.client.SendPhoto(chatID, imageURL, prompt)
 }
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username string, prompt string) error {
-	_ = h.client.SendChatAction(chatID, ActionTyping)
+	typing := h.startTyping(ctx, chatID, ActionTyping)
+	defer typing.Stop()
 
 	formattedPrompt := formatPromptWithUsername(username, prompt)
 	model := h.getChatModel(ctx, chatID)
@@ -646,7 +654,8 @@ func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyTtsError))
 	}
 
-	_ = h.client.SendChatAction(chatID, ActionRecordVoice)
+	typing := h.startTyping(ctx, chatID, ActionRecordVoice)
+	defer typing.Stop()
 
 	audioData, err := h.tts.GenerateSpeech(ctx, text)
 	if err != nil {
