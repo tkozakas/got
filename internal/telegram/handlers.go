@@ -154,9 +154,18 @@ func (h *BotHandlers) HandleFact(ctx context.Context, update *Update) error {
 func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
 	args := strings.TrimSpace(update.Message.CommandArguments())
+	parts := strings.Fields(args)
 
-	switch SubCommand(args) {
+	subCmd := SubCommand("")
+	if len(parts) > 0 {
+		subCmd = SubCommand(parts[0])
+	}
+
+	switch subCmd {
 	case SubCommandAdd:
+		if len(parts) > 1 {
+			return h.addStickerSet(ctx, chatID, parts[1])
+		}
 		if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.Sticker == nil {
 			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerUsage))
 		}
@@ -167,6 +176,9 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerAdded))
 
 	case SubCommandRemove:
+		if len(parts) > 1 {
+			return h.removeStickerSet(ctx, chatID, parts[1])
+		}
 		if update.Message.ReplyToMessage == nil || update.Message.ReplyToMessage.Sticker == nil {
 			return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerRemoveUsage))
 		}
@@ -653,6 +665,33 @@ func (h *BotHandlers) formatSubredditList(subs []*model.Subreddit) string {
 		sb.WriteString("- `r/" + s.Name + "`\n")
 	}
 	return sb.String()
+}
+
+func (h *BotHandlers) addStickerSet(ctx context.Context, chatID int64, setName string) error {
+	stickerSet, err := h.client.GetStickerSet(setName)
+	if err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerSetNotFound))
+	}
+
+	added := 0
+	for _, s := range stickerSet.Stickers {
+		if err := h.service.AddSticker(ctx, s.FileID, stickerSet.Name, chatID); err == nil {
+			added++
+		}
+	}
+
+	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyStickerSetAdded), stickerSet.Title, added))
+}
+
+func (h *BotHandlers) removeStickerSet(ctx context.Context, chatID int64, setName string) error {
+	removed, err := h.service.RemoveStickerSet(ctx, setName, chatID)
+	if err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerError))
+	}
+	if removed == 0 {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyStickerSetNotFound))
+	}
+	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyStickerSetRemoved), setName, removed))
 }
 
 func (h *BotHandlers) formatStickerList(stickers []*model.Sticker) string {

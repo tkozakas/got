@@ -87,3 +87,12 @@ func (r *StickerRepository) Delete(ctx context.Context, fileID string, chatID in
 	_, err := r.pool.Exec(ctx, query, fileID, chatID)
 	return err
 }
+
+func (r *StickerRepository) DeleteBySetName(ctx context.Context, setName string, chatID int64) (int, error) {
+	query := `DELETE FROM stickers WHERE sticker_set_name = $1 AND chat_id = $2`
+	result, err := r.pool.Exec(ctx, query, setName, chatID)
+	if err != nil {
+		return 0, err
+	}
+	return int(result.RowsAffected()), nil
+}

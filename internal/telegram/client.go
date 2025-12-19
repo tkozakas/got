@@ -22,6 +22,7 @@ const (
 	sendMediaGroupCMD = "/sendMediaGroup"
 	sendChatActionCMD = "/sendChatAction"
 	setMyCommandsCMD  = "/setMyCommands"
+	getStickerSetCMD  = "/getStickerSet"
 )
 
 type Client struct {
@@ -255,4 +256,49 @@ func (c *Client) SetMyCommands(commands []BotCommand) error {
 	}
 
 	return c.postJSON(setMyCommandsCMD, data)
+}
+
+type StickerSet struct {
+	Name     string           `json:"name"`
+	Title    string           `json:"title"`
+	Stickers []StickerSetItem `json:"stickers"`
+}
+
+type StickerSetItem struct {
+	FileID     string `json:"file_id"`
+	SetName    string `json:"set_name"`
+	IsVideo    bool   `json:"is_video"`
+	IsAnimated bool   `json:"is_animated"`
+}
+
+type StickerSetResponse struct {
+	Ok          bool       `json:"ok"`
+	Result      StickerSet `json:"result"`
+	Description string     `json:"description,omitempty"`
+}
+
+func (c *Client) GetStickerSet(name string) (*StickerSet, error) {
+	url := fmt.Sprintf("%s%s?name=%s", c.baseURL, getStickerSetCMD, name)
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp StickerSetResponse
+	if err := json.Unmarshal(data, &apiResp); err != nil {
+		return nil, err
+	}
+
+	if !apiResp.Ok {
+		return nil, fmt.Errorf("sticker set not found: %s", apiResp.Description)
+	}
+
+	return &apiResp.Result, nil
 }

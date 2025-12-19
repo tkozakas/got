@@ -105,6 +105,7 @@ type MockStickerRepository struct {
 	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Sticker, error)
 	ListByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Sticker, error)
 	DeleteFunc          func(ctx context.Context, fileID string, chatID int64) error
+	DeleteBySetNameFunc func(ctx context.Context, setName string, chatID int64) (int, error)
 }
 
 func (m *MockStickerRepository) Save(ctx context.Context, sticker *model.Sticker) error {
@@ -127,6 +128,13 @@ func (m *MockStickerRepository) Delete(ctx context.Context, fileID string, chatI
 		return m.DeleteFunc(ctx, fileID, chatID)
 	}
 	return nil
+}
+
+func (m *MockStickerRepository) DeleteBySetName(ctx context.Context, setName string, chatID int64) (int, error) {
+	if m.DeleteBySetNameFunc != nil {
+		return m.DeleteBySetNameFunc(ctx, setName, chatID)
+	}
+	return 0, nil
 }
 
 type MockSubredditRepository struct {

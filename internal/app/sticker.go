@@ -34,3 +34,7 @@ func (s *Service) ListStickers(ctx context.Context, chatID int64) ([]*model.Stic
 func (s *Service) RemoveSticker(ctx context.Context, fileID string, chatID int64) error {
 	return s.stickers.Delete(ctx, fileID, chatID)
 }
+
+func (s *Service) RemoveStickerSet(ctx context.Context, setName string, chatID int64) (int, error) {
+	return s.stickers.DeleteBySetName(ctx, setName, chatID)
+}

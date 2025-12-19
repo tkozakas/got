@@ -37,6 +37,7 @@ type StickerRepository interface {
 	GetRandomByChat(ctx context.Context, chatID int64) (*model.Sticker, error)
 	ListByChat(ctx context.Context, chatID int64) ([]*model.Sticker, error)
 	Delete(ctx context.Context, fileID string, chatID int64) error
+	DeleteBySetName(ctx context.Context, setName string, chatID int64) (int, error)
 }
 
 type SubredditRepository interface {

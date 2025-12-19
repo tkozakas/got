@@ -50,6 +50,9 @@ const (
 	KeyStickerRemoved     Key = "sticker_removed"
 	KeyStickerRemoveUsage Key = "sticker_remove_usage"
 	KeyStickerCount       Key = "sticker_count"
+	KeyStickerSetNotFound Key = "sticker_set_not_found"
+	KeyStickerSetAdded    Key = "sticker_set_added"
+	KeyStickerSetRemoved  Key = "sticker_set_removed"
 	KeyReminderNotify     Key = "reminder_notify"
 
 	KeyCmdStart    Key = "cmd_start"
