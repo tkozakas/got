@@ -863,6 +863,81 @@ func TestHandleGPTForget(t *testing.T) {
 	}
 }
 
+func TestHandleGPTImageNoPrompt(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	gpt := groq.NewClient("test-key")
+	handlers := newTestBotHandlersWithGPT(client, svc, gpt)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt image",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Usage:") {
+		t.Errorf("expected usage message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleGPTImageSuccess(t *testing.T) {
+	var photoURL string
+	var caption string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		if url, ok := payload["photo"].(string); ok {
+			photoURL = url
+		}
+		if cap, ok := payload["caption"].(string); ok {
+			caption = cap
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	gpt := groq.NewClient("test-key")
+	handlers := newTestBotHandlersWithGPT(client, svc, gpt)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt image a cute cat",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(photoURL, "image.pollinations.ai") {
+		t.Errorf("expected pollinations URL, got: %s", photoURL)
+	}
+	if !strings.Contains(photoURL, "width=1024") {
+		t.Errorf("expected width param in URL, got: %s", photoURL)
+	}
+	if !strings.Contains(photoURL, "nologo=true") {
+		t.Errorf("expected nologo param in URL, got: %s", photoURL)
+	}
+	if caption != "a cute cat" {
+		t.Errorf("expected caption 'a cute cat', got: %s", caption)
+	}
+}
+
 func TestFormatPromptWithUsername(t *testing.T) {
 	tests := []struct {
 		name     string
