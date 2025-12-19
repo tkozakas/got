@@ -1,23 +1,32 @@
+x-bot-common: &bot-common
+  container_name: got
+  env_file:
+    - .env
+  environment:
+    DB_URL: postgres://postgres:postgres@postgres:5432/telebot?sslmode=disable
+    REDIS_ADDR: redis:6379
+  volumes:
+    - ./.env:/app/.env:ro
+  depends_on:
+    - postgres
+    - redis
+  networks:
+    - bot-network
+  restart: unless-stopped
+
 services:
   bot:
-    container_name: got
-    image: ${BOT_IMAGE:-got:latest}
+    <<: *bot-common
+    image: ghcr.io/tkozakas/got:latest
+    profiles: ["prod"]
+
+  bot-dev:
+    <<: *bot-common
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      DB_URL: postgres://postgres:postgres@postgres:5432/telebot?sslmode=disable
-      REDIS_ADDR: redis:6379
-    volumes:
-      - ./.env:/app/.env:ro
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - bot-network
-    restart: unless-stopped
+    image: got:local
+    profiles: ["dev"]
 
   postgres:
     container_name: bot-postgres

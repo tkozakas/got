@@ -19,9 +19,14 @@ tasks:
       - ./bin/bot
 
   prod:
-    desc: Run the entire stack in Docker
+    desc: Run the entire stack in Docker (pull from registry)
     cmds:
-      - docker compose up -d --build
+      - docker compose --profile prod up -d
+
+  local:
+    desc: Run the entire stack in Docker (build locally)
+    cmds:
+      - docker compose --profile dev up -d --build
 
   build:
     desc: Build the Go binary
