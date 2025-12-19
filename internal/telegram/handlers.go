@@ -32,6 +32,8 @@ const (
 	SubCommandStats  SubCommand = "stats"
 	SubCommandMemory SubCommand = "memory"
 	SubCommandImage  SubCommand = "image"
+	SubCommandLogin  SubCommand = "login"
+	SubCommandReset  SubCommand = "reset"
 )
 
 const (
@@ -54,9 +56,10 @@ type BotHandlers struct {
 	tts       *tts.Client
 	cmds      *config.CommandsConfig
 	sentences *SentenceProvider
+	adminPass string
 }
 
-func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator, tts *tts.Client, cmds *config.CommandsConfig) *BotHandlers {
+func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator, tts *tts.Client, cmds *config.CommandsConfig, adminPass string) *BotHandlers {
 	return &BotHandlers{
 		client:    client,
 		service:   service,
@@ -66,6 +69,7 @@ func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cach
 		tts:       tts,
 		cmds:      cmds,
 		sentences: NewSentenceProvider(),
+		adminPass: adminPass,
 	}
 }
 
@@ -491,12 +495,12 @@ func (h *BotHandlers) handleGPTModels(ctx context.Context, chatID int64) error {
 
 	var sb strings.Builder
 	sb.WriteString(h.t.Get(i18n.KeyGptModelsHeader))
-	for _, m := range models {
+	for i, m := range models {
 		prefix := "  "
 		if m == currentModel {
 			prefix = "→ "
 		}
-		sb.WriteString(prefix + m + "\n")
+		sb.WriteString(fmt.Sprintf("%s%d. %s\n", prefix, i+1, m))
 	}
 	return h.client.SendMessage(chatID, sb.String())
 }
@@ -509,12 +513,15 @@ func (h *BotHandlers) fetchModelsWithFallback(ctx context.Context) []string {
 	return models
 }
 
-func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, modelName string) error {
+func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, modelInput string) error {
+	modelName := h.resolveModelName(ctx, modelInput)
+
 	if err := h.gpt.ValidateModel(modelName); err != nil {
+		models := h.gpt.ListModels()
 		var sb strings.Builder
 		sb.WriteString(h.t.Get(i18n.KeyGptModelInvalid))
-		for _, m := range h.gpt.ListModels() {
-			sb.WriteString("- " + m + "\n")
+		for i, m := range models {
+			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, m))
 		}
 		return h.client.SendMessage(chatID, sb.String())
 	}
@@ -524,6 +531,21 @@ func (h *BotHandlers) handleGPTSetModel(ctx context.Context, chatID int64, model
 	}
 
 	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyGptModelSet), modelName))
+}
+
+func (h *BotHandlers) resolveModelName(ctx context.Context, input string) string {
+	num, err := strconv.Atoi(input)
+	if err != nil {
+		return input
+	}
+
+	models := h.fetchModelsWithFallback(ctx)
+	idx := num - 1
+	if idx < 0 || idx >= len(models) {
+		return input
+	}
+
+	return models[idx]
 }
 
 func (h *BotHandlers) getChatModel(ctx context.Context, chatID int64) string {
@@ -822,4 +844,72 @@ func isAnimatedURL(url string) bool {
 		strings.Contains(lowerURL, ".gif?") ||
 		strings.HasSuffix(lowerURL, ".mp4") ||
 		strings.Contains(lowerURL, ".mp4?")
+}
+
+func (h *BotHandlers) HandleAdmin(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
+	isPrivate := update.Message.Chat.Type == "private"
+
+	if h.adminPass == "" {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminNoPass))
+	}
+
+	args := strings.TrimSpace(update.Message.CommandArguments())
+	parts := strings.SplitN(args, " ", 2)
+
+	if len(parts) == 0 || parts[0] == "" {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUsage))
+	}
+
+	switch SubCommand(parts[0]) {
+	case SubCommandLogin:
+		return h.handleAdminLogin(ctx, chatID, userID, parts, isPrivate)
+	case SubCommandReset:
+		return h.handleAdminReset(ctx, chatID, userID)
+	default:
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUsage))
+	}
+}
+
+func (h *BotHandlers) handleAdminLogin(ctx context.Context, chatID, userID int64, parts []string, isPrivate bool) error {
+	if !isPrivate {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminDMOnly))
+	}
+
+	if len(parts) < 2 {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUsage))
+	}
+
+	password := strings.TrimSpace(parts[1])
+	if password != h.adminPass {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminUnauthorized))
+	}
+
+	if h.cache != nil {
+		_ = h.cache.SetAdminSession(ctx, userID, true)
+	}
+
+	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminLoginSuccess))
+}
+
+func (h *BotHandlers) handleAdminReset(ctx context.Context, chatID, userID int64) error {
+	isAdmin, _ := h.isAdmin(ctx, userID)
+	if !isAdmin {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminNotLoggedIn))
+	}
+
+	year := time.Now().Year()
+	if err := h.service.ResetTodayWinner(ctx, chatID, year); err != nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminResetError))
+	}
+
+	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyAdminResetSuccess))
+}
+
+func (h *BotHandlers) isAdmin(ctx context.Context, userID int64) (bool, error) {
+	if h.cache == nil {
+		return false, nil
+	}
+	return h.cache.GetAdminSession(ctx, userID)
 }

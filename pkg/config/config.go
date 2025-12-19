@@ -24,6 +24,7 @@ const (
 	defaultCmdFact     = "fact"
 	defaultCmdRoulette = "roulette"
 	defaultCmdTts      = "tts"
+	defaultCmdAdmin    = "admin"
 )
 
 type Config struct {
@@ -31,6 +32,7 @@ type Config struct {
 	DBURL     string
 	GptKey    string
 	RedisAddr string
+	AdminPass string
 	Bot       BotConfig      `yaml:"bot"`
 	Schedule  ScheduleConfig `yaml:"schedule"`
 	Commands  CommandsConfig `yaml:"commands"`
@@ -55,6 +57,7 @@ type CommandsConfig struct {
 	Fact     string `yaml:"fact"`
 	Roulette string `yaml:"roulette"`
 	Tts      string `yaml:"tts"`
+	Admin    string `yaml:"admin"`
 }
 
 func Load() *Config {
@@ -123,6 +126,10 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Schedule.AutoRoulette = defaultAutoRoulette
 	}
 
+	if pass := os.Getenv("ADMIN_PASS"); pass != "" {
+		cfg.AdminPass = pass
+	}
+
 	applyCommandOverrides(cfg)
 }
 
@@ -136,6 +143,7 @@ func applyCommandOverrides(cfg *Config) {
 	cfg.Commands.Fact = getEnvOrDefaultWithFallback("CMD_FACT", cfg.Commands.Fact, defaultCmdFact)
 	cfg.Commands.Roulette = getEnvOrDefaultWithFallback("CMD_ROULETTE", cfg.Commands.Roulette, defaultCmdRoulette)
 	cfg.Commands.Tts = getEnvOrDefaultWithFallback("CMD_TTS", cfg.Commands.Tts, defaultCmdTts)
+	cfg.Commands.Admin = getEnvOrDefaultWithFallback("CMD_ADMIN", cfg.Commands.Admin, defaultCmdAdmin)
 }
 
 func getEnvOrDefaultWithFallback(envKey, yamlValue, defaultValue string) string {
@@ -161,6 +169,7 @@ func setDefaults(cfg *Config) {
 	cfg.Commands.Fact = defaultCmdFact
 	cfg.Commands.Roulette = defaultCmdRoulette
 	cfg.Commands.Tts = defaultCmdTts
+	cfg.Commands.Admin = defaultCmdAdmin
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

@@ -18,6 +18,7 @@ REDIS_ADDR=localhost:6379
 
 # Optional
 GROQ_API_KEY=your_groq_api_key
+ADMIN_PASS=your_secret_password
 ```
 
 Run in production:
@@ -35,17 +36,50 @@ task dev
 | Command | Description |
 |---------|-------------|
 | `/gpt <prompt>` | Chat with AI |
-| `/gpt model` | List/select AI models |
+| `/gpt model` | List AI models |
+| `/gpt model <name\|number>` | Select AI model by name or number |
 | `/gpt image <prompt>` | Generate images |
 | `/gpt memory` | Export chat history |
 | `/gpt clear` | Clear chat history |
 | `/tts <text>` | Text to speech |
 | `/remind <time> <msg>` | Set a reminder |
 | `/remind list` | List pending reminders |
+| `/remind delete <id>` | Delete a reminder |
 | `/meme` | Random meme |
+| `/meme <count>` | Multiple memes (1-5) |
+| `/meme add <subreddit>` | Add subreddit |
+| `/meme list` | List subreddits |
 | `/sticker` | Random sticker |
+| `/sticker add` | Add sticker (reply to sticker) |
+| `/sticker add <set_name>` | Add entire sticker set |
+| `/sticker list` | List sticker sets |
 | `/fact` | Random fact |
-| `/stats` | Daily winner game |
+| `/fact add <text>` | Add a fact |
+| `/roulette` | Daily winner roulette |
+| `/roulette stats [year]` | View stats |
+| `/roulette all` | All-time stats |
+| `/admin login <pass>` | Login as admin (DM only) |
+| `/admin reset` | Reset today's winner |
+
+## Configuration
+
+Commands can be customized via environment variables:
+
+```bash
+CMD_ROULETTE=pidor    # Rename /roulette to /pidor
+CMD_GPT=ai            # Rename /gpt to /ai
+CMD_ADMIN=sudo        # Rename /admin to /sudo
+```
+
+## Admin Commands
+
+Admin commands allow you to manage the bot securely:
+
+1. **Login** - DM the bot privately with `/admin login <password>`
+2. **Use admin commands** - Once logged in, use `/admin reset` in any chat
+3. **Logout** - `/admin logout` to end your session
+
+Sessions expire after 12 hours.
 
 ## API Keys
 

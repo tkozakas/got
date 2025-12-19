@@ -262,7 +262,7 @@ func newTestServiceForHandlers() *app.Service {
 }
 
 func newTestBotHandlers(client *Client, svc *app.Service) *BotHandlers {
-	return NewBotHandlers(client, svc, nil, nil, newTestTranslator(), nil, newTestCommandsConfig())
+	return NewBotHandlers(client, svc, nil, nil, newTestTranslator(), nil, newTestCommandsConfig(), "")
 }
 
 func newTestBotHandlersWithGPT(client *Client, svc *app.Service, gpt *groq.Client) *BotHandlers {

@@ -57,7 +57,7 @@ func main() {
 	ttsClient := tts.NewClient()
 
 	router := telegram.NewRouter()
-	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator, ttsClient, &cfg.Commands)
+	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator, ttsClient, &cfg.Commands, cfg.AdminPass)
 
 	cmds := &cfg.Commands
 	router.Register(cmds.Start, telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
@@ -69,6 +69,7 @@ func main() {
 	router.Register(cmds.Fact, telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
 	router.Register(cmds.Roulette, telegram.WithRecover(telegram.WithLogging(handlers.HandleRoulette)))
 	router.Register(cmds.Tts, telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
+	router.Register(cmds.Admin, telegram.WithRecover(telegram.WithLogging(handlers.HandleAdmin)))
 
 	autoRegister := telegram.NewAutoRegisterMiddleware(svc, router)
 	bot := telegram.NewBot(client, autoRegister)

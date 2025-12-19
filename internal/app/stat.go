@@ -127,3 +127,11 @@ func (s *Service) runRouletteForChat(ctx context.Context, chatID int64, year int
 
 	return RouletteResult{ChatID: chatID, Winner: winner}, true
 }
+
+func (s *Service) ResetTodayWinner(ctx context.Context, chatID int64, year int) error {
+	return s.stats.ResetWinnerByChat(ctx, chatID, year)
+}
+
+func (s *Service) UpdateStat(ctx context.Context, statID int64, score int64, isWinner bool) error {
+	return s.stats.Update(ctx, statID, score, isWinner)
+}

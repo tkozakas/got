@@ -24,6 +24,16 @@ func TestMessageCommand(t *testing.T) {
 			want: "echo",
 		},
 		{
+			name: "Command with bot mention",
+			text: "/meme@maurynas_robot",
+			want: "meme",
+		},
+		{
+			name: "Command with bot mention and args",
+			text: "/meme@maurynas_robot 5",
+			want: "meme",
+		},
+		{
 			name: "Not a command",
 			text: "hello world",
 			want: "",

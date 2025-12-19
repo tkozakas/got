@@ -15,15 +15,28 @@ type Message struct {
 }
 
 func (m *Message) Command() string {
-	if len(m.Text) > 0 && m.Text[0] == '/' {
-		for i, r := range m.Text {
-			if r == ' ' {
-				return m.Text[1:i]
-			}
-		}
-		return m.Text[1:]
+	if len(m.Text) == 0 || m.Text[0] != '/' {
+		return ""
 	}
-	return ""
+
+	cmd := m.Text[1:]
+	for i, r := range cmd {
+		if r == ' ' {
+			cmd = cmd[:i]
+			break
+		}
+	}
+
+	return stripBotMention(cmd)
+}
+
+func stripBotMention(cmd string) string {
+	for i, r := range cmd {
+		if r == '@' {
+			return cmd[:i]
+		}
+	}
+	return cmd
 }
 
 func (m *Message) CommandArguments() string {

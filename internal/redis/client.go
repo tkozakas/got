@@ -10,17 +10,19 @@ import (
 )
 
 const (
-	defaultTimeout = 5 * time.Second
-	historyTTL     = 24 * time.Hour
-	maxHistoryLen  = 10
-	historyKeyFmt  = "gpt:history:%d"
-	modelKeyFmt    = "gpt:model:%d"
-	commandSet     = "*3\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n"
-	commandGet     = "*2\r\n$3\r\nGET\r\n$%d\r\n%s\r\n"
-	commandExpire  = "*3\r\n$6\r\nEXPIRE\r\n$%d\r\n%s\r\n$%d\r\n%d\r\n"
-	responseOK     = "+OK"
-	responseNil    = "$-1"
-	responseBulk   = '$'
+	defaultTimeout  = 5 * time.Second
+	historyTTL      = 24 * time.Hour
+	adminSessionTTL = 12 * time.Hour
+	maxHistoryLen   = 10
+	historyKeyFmt   = "gpt:history:%d"
+	modelKeyFmt     = "gpt:model:%d"
+	adminKeyFmt     = "admin:session:%d"
+	commandSet      = "*3\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n"
+	commandGet      = "*2\r\n$3\r\nGET\r\n$%d\r\n%s\r\n"
+	commandExpire   = "*3\r\n$6\r\nEXPIRE\r\n$%d\r\n%s\r\n$%d\r\n%d\r\n"
+	responseOK      = "+OK"
+	responseNil     = "$-1"
+	responseBulk    = '$'
 )
 
 type Client struct {
@@ -85,6 +87,27 @@ func (c *Client) historyKey(chatID int64) string {
 
 func (c *Client) modelKey(chatID int64) string {
 	return fmt.Sprintf(modelKeyFmt, chatID)
+}
+
+func (c *Client) adminKey(userID int64) string {
+	return fmt.Sprintf(adminKeyFmt, userID)
+}
+
+func (c *Client) SetAdminSession(ctx context.Context, userID int64, active bool) error {
+	key := c.adminKey(userID)
+	if !active {
+		return c.set(ctx, key, "0")
+	}
+	return c.setWithTTL(ctx, key, "1", adminSessionTTL)
+}
+
+func (c *Client) GetAdminSession(ctx context.Context, userID int64) (bool, error) {
+	key := c.adminKey(userID)
+	val, err := c.get(ctx, key)
+	if err != nil {
+		return false, err
+	}
+	return val == "1", nil
 }
 
 func (c *Client) get(ctx context.Context, key string) (string, error) {

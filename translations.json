@@ -71,7 +71,15 @@
     "gpt_memory_no_redis": "Memory not available.",
     "gpt_memory_caption": "Chat History",
     "gpt_model_set": "Model switched to %s",
-    "gpt_model_invalid": "Invalid model.\n\n*Available Models:*\n\n"
+    "gpt_model_invalid": "Invalid model.\n\n*Available Models:*\n\n",
+    "admin_unauthorized": "Invalid password.",
+    "admin_usage": "Usage: `/admin` `<login, reset>`\n\nLogin via DM to the bot.",
+    "admin_login_success": "Admin access granted.",
+    "admin_not_logged_in": "You are not logged in as admin.",
+    "admin_reset_success": "Winner reset for this chat.",
+    "admin_reset_error": "Failed to reset winner.",
+    "admin_no_pass": "Admin password not configured.",
+    "admin_dm_only": "Please login via DM to the bot for security."
   },
   "ru": {
     "welcome": "Добро пожаловать! Я готов.",

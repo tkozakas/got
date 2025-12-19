@@ -101,6 +101,18 @@ func (r *StatRepository) ResetDailyWinners(ctx context.Context) error {
 	return err
 }
 
+func (r *StatRepository) ResetWinnerByChat(ctx context.Context, chatID int64, year int) error {
+	query := `UPDATE stats SET is_winner = false WHERE chat_id = $1 AND year = $2 AND is_winner = true`
+	_, err := r.pool.Exec(ctx, query, chatID, year)
+	return err
+}
+
+func (r *StatRepository) Update(ctx context.Context, statID int64, score int64, isWinner bool) error {
+	query := `UPDATE stats SET score = $1, is_winner = $2 WHERE stat_id = $3`
+	_, err := r.pool.Exec(ctx, query, score, isWinner, statID)
+	return err
+}
+
 func (r *StatRepository) queryStats(ctx context.Context, query string, args ...any) ([]*model.Stat, error) {
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {

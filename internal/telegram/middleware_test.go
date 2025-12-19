@@ -194,6 +194,8 @@ type mockStatRepo struct {
 	findWinnerByChatFunc   func(ctx context.Context, chatID int64, year int) (*model.Stat, error)
 	listByChatAndYearFunc  func(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
 	listByChatFunc         func(ctx context.Context, chatID int64) ([]*model.Stat, error)
+	resetWinnerByChatFunc  func(ctx context.Context, chatID int64, year int) error
+	updateFunc             func(ctx context.Context, statID int64, score int64, isWinner bool) error
 }
 
 func (m *mockStatRepo) Save(ctx context.Context, s *model.Stat) error {
@@ -227,6 +229,18 @@ func (m *mockStatRepo) ListByChat(ctx context.Context, chatID int64) ([]*model.S
 	return nil, nil
 }
 func (m *mockStatRepo) ResetDailyWinners(ctx context.Context) error { return nil }
+func (m *mockStatRepo) ResetWinnerByChat(ctx context.Context, chatID int64, year int) error {
+	if m.resetWinnerByChatFunc != nil {
+		return m.resetWinnerByChatFunc(ctx, chatID, year)
+	}
+	return nil
+}
+func (m *mockStatRepo) Update(ctx context.Context, statID int64, score int64, isWinner bool) error {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, statID, score, isWinner)
+	}
+	return nil
+}
 
 type mockHandler struct {
 	called bool

@@ -92,6 +92,15 @@ const (
 	KeyGptMemoryCaption Key = "gpt_memory_caption"
 	KeyGptModelSet      Key = "gpt_model_set"
 	KeyGptModelInvalid  Key = "gpt_model_invalid"
+
+	KeyAdminUnauthorized Key = "admin_unauthorized"
+	KeyAdminUsage        Key = "admin_usage"
+	KeyAdminLoginSuccess Key = "admin_login_success"
+	KeyAdminNotLoggedIn  Key = "admin_not_logged_in"
+	KeyAdminResetSuccess Key = "admin_reset_success"
+	KeyAdminResetError   Key = "admin_reset_error"
+	KeyAdminNoPass       Key = "admin_no_pass"
+	KeyAdminDMOnly       Key = "admin_dm_only"
 )
 
 type Translator struct {

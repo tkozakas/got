@@ -54,4 +54,6 @@ type StatRepository interface {
 	ListByChatAndYear(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
 	ListByChat(ctx context.Context, chatID int64) ([]*model.Stat, error)
 	ResetDailyWinners(ctx context.Context) error
+	ResetWinnerByChat(ctx context.Context, chatID int64, year int) error
+	Update(ctx context.Context, statID int64, score int64, isWinner bool) error
 }

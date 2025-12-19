@@ -173,6 +173,8 @@ type MockStatRepository struct {
 	ListByChatAndYearFunc  func(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
 	ListByChatFunc         func(ctx context.Context, chatID int64) ([]*model.Stat, error)
 	ResetDailyWinnersFunc  func(ctx context.Context) error
+	ResetWinnerByChatFunc  func(ctx context.Context, chatID int64, year int) error
+	UpdateFunc             func(ctx context.Context, statID int64, score int64, isWinner bool) error
 }
 
 func (m *MockStatRepository) Save(ctx context.Context, stat *model.Stat) error {
@@ -208,6 +210,20 @@ func (m *MockStatRepository) ListByChat(ctx context.Context, chatID int64) ([]*m
 func (m *MockStatRepository) ResetDailyWinners(ctx context.Context) error {
 	if m.ResetDailyWinnersFunc != nil {
 		return m.ResetDailyWinnersFunc(ctx)
+	}
+	return nil
+}
+
+func (m *MockStatRepository) ResetWinnerByChat(ctx context.Context, chatID int64, year int) error {
+	if m.ResetWinnerByChatFunc != nil {
+		return m.ResetWinnerByChatFunc(ctx, chatID, year)
+	}
+	return nil
+}
+
+func (m *MockStatRepository) Update(ctx context.Context, statID int64, score int64, isWinner bool) error {
+	if m.UpdateFunc != nil {
+		return m.UpdateFunc(ctx, statID, score, isWinner)
 	}
 	return nil
 }
