@@ -13,6 +13,8 @@ const (
 	defaultTimeout = 30 * time.Second
 	getUpdatesCMD  = "/getUpdates"
 	sendMessageCMD = "/sendMessage"
+	sendPhotoCMD   = "/sendPhoto"
+	sendStickerCMD = "/sendSticker"
 )
 
 type Client struct {
@@ -73,6 +75,35 @@ func (c *Client) parseUpdatesResponse(body io.Reader) ([]Update, error) {
 	}
 
 	return apiResp.Result, nil
+}
+
+func (c *Client) SendPhoto(chatID int64, photoURL string, caption string) error {
+	payload := map[string]any{
+		"chat_id": chatID,
+		"photo":   photoURL,
+		"caption": caption,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(sendPhotoCMD, data)
+}
+
+func (c *Client) SendSticker(chatID int64, stickerID string) error {
+	payload := map[string]any{
+		"chat_id": chatID,
+		"sticker": stickerID,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(sendStickerCMD, data)
 }
 
 func (c *Client) postJSON(endpoint string, data []byte) error {

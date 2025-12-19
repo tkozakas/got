@@ -1,0 +1,90 @@
+package i18n
+
+import (
+	"encoding/json"
+	"log/slog"
+	"os"
+)
+
+const (
+	defaultLang     = "en"
+	defaultFilePath = "translations.json"
+)
+
+type Key string
+
+const (
+	KeyWelcome         Key = "welcome"
+	KeyFactError       Key = "fact_error"
+	KeyNoFacts         Key = "no_facts"
+	KeyStickerError    Key = "sticker_error"
+	KeyNoStickers      Key = "no_stickers"
+	KeySubredditError  Key = "subreddit_error"
+	KeyGptUsage        Key = "gpt_usage"
+	KeyGptModelsHeader Key = "gpt_models_header"
+	KeyGptCleared      Key = "gpt_cleared"
+	KeyGptError        Key = "gpt_error"
+	KeyGptNoKey        Key = "gpt_no_key"
+	KeyRemindListError Key = "remind_list_error"
+	KeyRemindNoPending Key = "remind_no_pending"
+	KeyRemindUsage     Key = "remind_usage"
+	KeyRemindInvalid   Key = "remind_invalid_time"
+	KeyRemindSuccess   Key = "remind_success"
+	KeyRemindHeader    Key = "remind_header"
+	KeyRemindFormat    Key = "remind_format"
+	KeyMemeError       Key = "meme_error"
+	KeyFactFormat      Key = "fact_format"
+	KeyReminderNotify  Key = "reminder_notify"
+)
+
+type Translator struct {
+	lang         string
+	translations map[string]string
+	fallback     map[string]string
+}
+
+func New(lang string) *Translator {
+	all := loadTranslationsFile(defaultFilePath)
+
+	translations := all[lang]
+	if translations == nil {
+		slog.Warn("language not found, using default", "lang", lang, "default", defaultLang)
+		translations = all[defaultLang]
+	}
+
+	return &Translator{
+		lang:         lang,
+		translations: translations,
+		fallback:     all[defaultLang],
+	}
+}
+
+func (t *Translator) Get(key Key) string {
+	if msg, ok := t.translations[string(key)]; ok {
+		return msg
+	}
+	if msg, ok := t.fallback[string(key)]; ok {
+		return msg
+	}
+	return string(key)
+}
+
+func (t *Translator) Lang() string {
+	return t.lang
+}
+
+func loadTranslationsFile(path string) map[string]map[string]string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		slog.Error("failed to read translations file", "path", path, "error", err)
+		return make(map[string]map[string]string)
+	}
+
+	var translations map[string]map[string]string
+	if err := json.Unmarshal(data, &translations); err != nil {
+		slog.Error("failed to parse translations file", "path", path, "error", err)
+		return make(map[string]map[string]string)
+	}
+
+	return translations
+}
