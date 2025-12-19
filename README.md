@@ -4,6 +4,11 @@ Telegram bot written in Go.
 
 ## Setup
 
+Install [Task](https://taskfile.dev):
+```bash
+go install github.com/go-task/task/v3/cmd/task@latest
+```
+
 Create `.env`:
 ```bash
 BOT_TOKEN=your_telegram_bot_token
