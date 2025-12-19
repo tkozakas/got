@@ -9,6 +9,7 @@ import (
 	"got/internal/redis"
 	"got/internal/tts"
 	"got/pkg/i18n"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ const (
 	SubCommandClear  SubCommand = "clear"
 	SubCommandAll    SubCommand = "all"
 	SubCommandStats  SubCommand = "stats"
+	SubCommandMemory SubCommand = "memory"
+	SubCommandImage  SubCommand = "image"
 )
 
 type BotHandlers struct {
@@ -217,11 +220,21 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptUsage))
 	}
 
-	switch SubCommand(args) {
+	parts := strings.SplitN(args, " ", 2)
+	subCmd := SubCommand(parts[0])
+
+	switch subCmd {
 	case SubCommandModel:
+		if len(parts) > 1 && strings.TrimSpace(parts[1]) != "" {
+			return h.handleGPTSetModel(chatID, strings.TrimSpace(parts[1]))
+		}
 		return h.handleGPTModels(chatID)
 	case SubCommandClear:
 		return h.handleGPTClear(ctx, chatID)
+	case SubCommandMemory:
+		return h.handleGPTMemory(ctx, chatID)
+	case SubCommandImage:
+		return h.handleGPTImage(chatID, parts)
 	default:
 		return h.handleGPTChat(ctx, chatID, args)
 	}
@@ -353,11 +366,53 @@ func (h *BotHandlers) handleGPTModels(chatID int64) error {
 	return h.client.SendMessage(chatID, sb.String())
 }
 
+func (h *BotHandlers) handleGPTSetModel(chatID int64, modelName string) error {
+	if err := h.gpt.SetModel(modelName); err != nil {
+		var sb strings.Builder
+		sb.WriteString(h.t.Get(i18n.KeyGptModelInvalid))
+		for _, m := range h.gpt.ListModels() {
+			sb.WriteString("- " + m + "\n")
+		}
+		return h.client.SendMessage(chatID, sb.String())
+	}
+	return h.client.SendMessage(chatID, fmt.Sprintf(h.t.Get(i18n.KeyGptModelSet), modelName))
+}
+
 func (h *BotHandlers) handleGPTClear(ctx context.Context, chatID int64) error {
 	if h.cache != nil {
 		_ = h.cache.ClearHistory(ctx, chatID)
 	}
 	return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptCleared))
+}
+
+func (h *BotHandlers) handleGPTMemory(ctx context.Context, chatID int64) error {
+	if h.cache == nil {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptMemoryNoRedis))
+	}
+
+	history, err := h.cache.GetHistory(ctx, chatID)
+	if err != nil || len(history) == 0 {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptMemoryEmpty))
+	}
+
+	totalChars := 0
+	for _, msg := range history {
+		totalChars += len(msg.Content)
+	}
+
+	msg := h.t.Get(i18n.KeyGptMemoryHeader) + fmt.Sprintf(h.t.Get(i18n.KeyGptMemoryStats), len(history), totalChars)
+	return h.client.SendMessage(chatID, msg)
+}
+
+func (h *BotHandlers) handleGPTImage(chatID int64, parts []string) error {
+	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
+		return h.client.SendMessage(chatID, h.t.Get(i18n.KeyGptImageUsage))
+	}
+
+	prompt := strings.TrimSpace(parts[1])
+	imageURL := fmt.Sprintf("https://image.pollinations.ai/prompt/%s", url.QueryEscape(prompt))
+
+	return h.client.SendPhoto(chatID, imageURL, prompt)
 }
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, prompt string) error {

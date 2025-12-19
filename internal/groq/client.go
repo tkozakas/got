@@ -92,8 +92,14 @@ func (c *Client) ListModels() []string {
 	}
 }
 
-func (c *Client) SetModel(model string) {
-	c.model = model
+func (c *Client) SetModel(model string) error {
+	for _, m := range c.ListModels() {
+		if m == model {
+			c.model = model
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid model: %s", model)
 }
 
 func (c *Client) buildMessages(prompt string, history []Message) []Message {

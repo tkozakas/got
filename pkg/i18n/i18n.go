@@ -71,6 +71,16 @@ const (
 	KeyCmdTts   Key = "cmd_tts"
 	KeyTtsUsage Key = "tts_usage"
 	KeyTtsError Key = "tts_error"
+
+	KeyGptImageUsage Key = "gpt_image_usage"
+	KeyGptImageError Key = "gpt_image_error"
+
+	KeyGptMemoryHeader  Key = "gpt_memory_header"
+	KeyGptMemoryStats   Key = "gpt_memory_stats"
+	KeyGptMemoryEmpty   Key = "gpt_memory_empty"
+	KeyGptMemoryNoRedis Key = "gpt_memory_no_redis"
+	KeyGptModelSet      Key = "gpt_model_set"
+	KeyGptModelInvalid  Key = "gpt_model_invalid"
 )
 
 type Translator struct {

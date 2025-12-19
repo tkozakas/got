@@ -52,7 +52,15 @@
     "stats_usage": "Usage: /stats or /stats all or /stats <year>",
     "cmd_tts": "Convert text to speech",
     "tts_usage": "Usage: /tts <text to speak>",
-    "tts_error": "Failed to generate speech."
+    "tts_error": "Failed to generate speech.",
+    "gpt_image_usage": "Usage: /gpt image <description>",
+    "gpt_image_error": "Failed to generate image.",
+    "gpt_memory_header": "📊 *Conversation Memory*",
+    "gpt_memory_stats": "\n\nMessages: %d\nCharacters: %d",
+    "gpt_memory_empty": "No conversation history.",
+    "gpt_memory_no_redis": "Memory not available.",
+    "gpt_model_set": "Model switched to %s",
+    "gpt_model_invalid": "Invalid model. Available models:\n"
   },
   "ru": {
     "welcome": "Добро пожаловать! Я готов.",
@@ -107,7 +115,15 @@
     "stats_usage": "Использование: /stats или /stats all или /stats <год>",
     "cmd_tts": "Преобразовать текст в речь",
     "tts_usage": "Использование: /tts <текст для озвучивания>",
-    "tts_error": "Не удалось сгенерировать речь."
+    "tts_error": "Не удалось сгенерировать речь.",
+    "gpt_image_usage": "Использование: /gpt image <описание>",
+    "gpt_image_error": "Не удалось сгенерировать изображение.",
+    "gpt_memory_header": "📊 *Память разговора*",
+    "gpt_memory_stats": "\n\nСообщений: %d\nСимволов: %d",
+    "gpt_memory_empty": "История разговора пуста.",
+    "gpt_memory_no_redis": "Память недоступна.",
+    "gpt_model_set": "Модель изменена на %s",
+    "gpt_model_invalid": "Неверная модель. Доступные модели:\n"
   },
   "lt": {
     "welcome": "Sveiki! Aš pasiruošęs.",
@@ -162,7 +178,15 @@
     "stats_usage": "Naudojimas: /stats arba /stats all arba /stats <metai>",
     "cmd_tts": "Paversti tekstą kalba",
     "tts_usage": "Naudojimas: /tts <tekstas kalbėjimui>",
-    "tts_error": "Nepavyko sugeneruoti kalbos."
+    "tts_error": "Nepavyko sugeneruoti kalbos.",
+    "gpt_image_usage": "Naudojimas: /gpt image <aprašymas>",
+    "gpt_image_error": "Nepavyko sugeneruoti vaizdo.",
+    "gpt_memory_header": "📊 *Pokalbio atmintis*",
+    "gpt_memory_stats": "\n\nŽinučių: %d\nSimbolių: %d",
+    "gpt_memory_empty": "Pokalbių istorijos nėra.",
+    "gpt_memory_no_redis": "Atmintis nepasiekiama.",
+    "gpt_model_set": "Modelis pakeistas į %s",
+    "gpt_model_invalid": "Neteisingas modelis. Galimi modeliai:\n"
   },
   "ja": {
     "welcome": "ようこそ！準備完了です。",
@@ -217,6 +241,14 @@
     "stats_usage": "使用方法: /stats または /stats all または /stats <年>",
     "cmd_tts": "テキストを音声に変換",
     "tts_usage": "使用方法: /tts <読み上げるテキスト>",
-    "tts_error": "音声の生成に失敗しました。"
+    "tts_error": "音声の生成に失敗しました。",
+    "gpt_image_usage": "使用方法: /gpt image <説明>",
+    "gpt_image_error": "画像の生成に失敗しました。",
+    "gpt_memory_header": "📊 *会話メモリ*",
+    "gpt_memory_stats": "\n\nメッセージ数: %d\n文字数: %d",
+    "gpt_memory_empty": "会話履歴がありません。",
+    "gpt_memory_no_redis": "メモリが利用できません。",
+    "gpt_model_set": "モデルを%sに切り替えました",
+    "gpt_model_invalid": "無効なモデルです。利用可能なモデル:\n"
   }
 }
