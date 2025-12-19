@@ -1,0 +1,51 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task: run
+
+  dev:
+    desc: Run the bot in development mode with local DBs
+    cmds:
+      - docker compose up -d postgres redis
+      - go run cmd/bot/main.go
+
+  run:
+    desc: Build and run the bot locally with dockerized dependencies
+    deps: [build]
+    cmds:
+      - docker compose up -d postgres redis
+      - ./bin/bot
+
+  prod:
+    desc: Run the entire stack in Docker
+    cmds:
+      - docker compose up -d --build
+
+  build:
+    desc: Build the Go binary
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/bot cmd/bot/main.go
+
+  docker-build:
+    desc: Build the Docker image
+    cmds:
+      - docker build -t got:latest .
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+
+  stop:
+    desc: Stop all running containers
+    cmds:
+      - docker compose down
+
+  clean:
+    desc: Clean build artifacts and stop containers with volume removal
+    cmds:
+      - rm -rf bin
+      - docker compose down -v
