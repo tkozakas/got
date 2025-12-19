@@ -9,6 +9,30 @@ import (
 	"time"
 )
 
+const (
+	welcomeMessage     = "Welcome! I am ready."
+	factError          = "Failed to fetch a fact."
+	noFacts            = "No facts available."
+	stickerError       = "Failed to fetch a sticker."
+	noStickers         = "No stickers available."
+	subredditError     = "Failed to fetch a subreddit."
+	noSubreddits       = "No subreddits available."
+	gptUsage           = "Usage: /gpt <prompt> or /gpt model or /gpt image <prompt>"
+	gptModels          = "Available models: gpt-4, gpt-3.5-turbo (Mock)"
+	remindListError    = "Failed to list reminders."
+	remindNoPending    = "No pending reminders."
+	remindUsage        = "Usage: /remind 5s Hello World OR /remind list"
+	remindInvalidTime  = "Invalid duration format. Use 5s, 1m, 1h."
+	remindSuccess      = "Reminder set for %s"
+	remindListHeader   = "Pending reminders:\n"
+	remindFormat       = "- %s (at %s)\n"
+	memeFormat         = "Here is a meme from r/%s"
+	stickerFormat      = "Here is a sticker for you: %s (ID: %s)"
+	factFormat         = "Fact: %s"
+	gptImageGenerating = "Generating image for: %s"
+	gptResponse        = "AI Response to: %s"
+)
+
 type BotHandlers struct {
 	client  *Client
 	service *app.Service
@@ -36,57 +60,57 @@ func (h *BotHandlers) HandleStart(ctx context.Context, update *Update) error {
 		})
 	}
 
-	return h.client.SendMessage(update.Message.Chat.ID, "Welcome! I am ready.")
+	return h.client.SendMessage(update.Message.Chat.ID, welcomeMessage)
 }
 
 func (h *BotHandlers) HandleFact(ctx context.Context, update *Update) error {
 	fact, err := h.service.GetRandomFact(ctx)
 	if err != nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "Failed to fetch a fact.")
+		return h.client.SendMessage(update.Message.Chat.ID, factError)
 	}
 	if fact == nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "No facts available.")
+		return h.client.SendMessage(update.Message.Chat.ID, noFacts)
 	}
-	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Fact: %s", fact.Comment))
+	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(factFormat, fact.Comment))
 }
 
 func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 	sticker, err := h.service.GetRandomSticker(ctx)
 	if err != nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "Failed to fetch a sticker.")
+		return h.client.SendMessage(update.Message.Chat.ID, stickerError)
 	}
 	if sticker == nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "No stickers available.")
+		return h.client.SendMessage(update.Message.Chat.ID, noStickers)
 	}
-	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Here is a sticker for you: %s (ID: %s)", sticker.StickerSetName, sticker.FileID))
+	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(stickerFormat, sticker.StickerSetName, sticker.FileID))
 }
 
 func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	sub, err := h.service.GetRandomSubreddit(ctx)
 	if err != nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "Failed to fetch a subreddit.")
+		return h.client.SendMessage(update.Message.Chat.ID, subredditError)
 	}
 	if sub == nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "No subreddits available.")
+		return h.client.SendMessage(update.Message.Chat.ID, noSubreddits)
 	}
-	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Here is a meme from r/%s", sub.Name))
+	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(memeFormat, sub.Name))
 }
 
 func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 	args := update.Message.CommandArguments()
 	if args == "" {
-		return h.client.SendMessage(update.Message.Chat.ID, "Usage: /gpt <prompt> or /gpt model or /gpt image <prompt>")
+		return h.client.SendMessage(update.Message.Chat.ID, gptUsage)
 	}
 
 	if strings.HasPrefix(args, "model") {
-		return h.client.SendMessage(update.Message.Chat.ID, "Available models: gpt-4, gpt-3.5-turbo (Mock)")
+		return h.client.SendMessage(update.Message.Chat.ID, gptModels)
 	}
 
 	if prompt, ok := strings.CutPrefix(args, "image "); ok {
-		return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Generating image for: %s", prompt))
+		return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(gptImageGenerating, prompt))
 	}
 
-	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("AI Response to: %s", args))
+	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(gptResponse, args))
 }
 
 func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
@@ -94,27 +118,27 @@ func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 	if args == "list" {
 		reminders, err := h.service.GetPendingReminders(ctx, update.Message.Chat.ID)
 		if err != nil {
-			return h.client.SendMessage(update.Message.Chat.ID, "Failed to list reminders.")
+			return h.client.SendMessage(update.Message.Chat.ID, remindListError)
 		}
 		if len(reminders) == 0 {
-			return h.client.SendMessage(update.Message.Chat.ID, "No pending reminders.")
+			return h.client.SendMessage(update.Message.Chat.ID, remindNoPending)
 		}
 		var sb strings.Builder
-		sb.WriteString("Pending reminders:\n")
+		sb.WriteString(remindListHeader)
 		for _, r := range reminders {
-			sb.WriteString(fmt.Sprintf("- %s (at %s)\n", r.Message, r.RemindAt.Format(time.RFC822)))
+			sb.WriteString(fmt.Sprintf(remindFormat, r.Message, r.RemindAt.Format(time.RFC822)))
 		}
 		return h.client.SendMessage(update.Message.Chat.ID, sb.String())
 	}
 
 	parts := strings.SplitN(args, " ", 2)
 	if len(parts) < 2 {
-		return h.client.SendMessage(update.Message.Chat.ID, "Usage: /remind 5s Hello World OR /remind list")
+		return h.client.SendMessage(update.Message.Chat.ID, remindUsage)
 	}
 
 	duration, err := time.ParseDuration(parts[0])
 	if err != nil {
-		return h.client.SendMessage(update.Message.Chat.ID, "Invalid duration format. Use 5s, 1m, 1h.")
+		return h.client.SendMessage(update.Message.Chat.ID, remindInvalidTime)
 	}
 
 	err = h.service.AddReminder(
@@ -128,5 +152,5 @@ func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Error: %v", err))
 	}
 
-	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf("Reminder set for %s", duration))
+	return h.client.SendMessage(update.Message.Chat.ID, fmt.Sprintf(remindSuccess, duration))
 }

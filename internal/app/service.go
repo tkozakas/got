@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"got/internal/app/model"
+	"log/slog"
 	"time"
 )
 
@@ -114,7 +115,7 @@ func (s *Service) CheckReminders(ctx context.Context) ([]*model.Reminder, error)
 
 	for _, r := range pending {
 		if err := s.reminders.MarkSent(ctx, r.ReminderID); err != nil {
-			fmt.Printf("failed to mark reminder %d as sent: %v\n", r.ReminderID, err)
+			slog.Error("failed to mark reminder as sent", "id", r.ReminderID, "error", err)
 		}
 	}
 

@@ -2,7 +2,7 @@ package telegram
 
 import (
 	"context"
-	"log"
+	"log/slog"
 )
 
 type Middleware func(HandlerFunc) HandlerFunc
@@ -10,7 +10,10 @@ type Middleware func(HandlerFunc) HandlerFunc
 func WithLogging(next HandlerFunc) HandlerFunc {
 	return func(ctx context.Context, update *Update) error {
 		if update.Message != nil {
-			log.Printf("User %s command %s", update.Message.From.UserName, update.Message.Command())
+			slog.Info("User command received",
+				"user", update.Message.From.UserName,
+				"command", update.Message.Command(),
+			)
 		}
 		return next(ctx, update)
 	}
@@ -20,7 +23,7 @@ func WithRecover(next HandlerFunc) HandlerFunc {
 	return func(ctx context.Context, update *Update) error {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Println("Recovered:", r)
+				slog.Error("Panic recovered", "error", r)
 			}
 		}()
 		return next(ctx, update)
