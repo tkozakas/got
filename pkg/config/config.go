@@ -14,6 +14,16 @@ const (
 	defaultConfigPath   = "config.yaml"
 	defaultWinnerReset  = "0 0 0 * * *"
 	defaultAutoRoulette = "0 0 11 * * *"
+
+	defaultCmdStart    = "start"
+	defaultCmdHelp     = "help"
+	defaultCmdGpt      = "gpt"
+	defaultCmdRemind   = "remind"
+	defaultCmdMeme     = "meme"
+	defaultCmdSticker  = "sticker"
+	defaultCmdFact     = "fact"
+	defaultCmdRoulette = "roulette"
+	defaultCmdTts      = "tts"
 )
 
 type Config struct {
@@ -23,6 +33,7 @@ type Config struct {
 	RedisAddr string
 	Bot       BotConfig      `yaml:"bot"`
 	Schedule  ScheduleConfig `yaml:"schedule"`
+	Commands  CommandsConfig `yaml:"commands"`
 }
 
 type BotConfig struct {
@@ -32,6 +43,18 @@ type BotConfig struct {
 type ScheduleConfig struct {
 	WinnerReset  string `yaml:"winner_reset"`
 	AutoRoulette string `yaml:"auto_roulette"`
+}
+
+type CommandsConfig struct {
+	Start    string `yaml:"start"`
+	Help     string `yaml:"help"`
+	Gpt      string `yaml:"gpt"`
+	Remind   string `yaml:"remind"`
+	Meme     string `yaml:"meme"`
+	Sticker  string `yaml:"sticker"`
+	Fact     string `yaml:"fact"`
+	Roulette string `yaml:"roulette"`
+	Tts      string `yaml:"tts"`
 }
 
 func Load() *Config {
@@ -99,12 +122,45 @@ func applyEnvOverrides(cfg *Config) {
 	if cfg.Schedule.AutoRoulette == "" {
 		cfg.Schedule.AutoRoulette = defaultAutoRoulette
 	}
+
+	applyCommandOverrides(cfg)
+}
+
+func applyCommandOverrides(cfg *Config) {
+	cfg.Commands.Start = getEnvOrDefaultWithFallback("CMD_START", cfg.Commands.Start, defaultCmdStart)
+	cfg.Commands.Help = getEnvOrDefaultWithFallback("CMD_HELP", cfg.Commands.Help, defaultCmdHelp)
+	cfg.Commands.Gpt = getEnvOrDefaultWithFallback("CMD_GPT", cfg.Commands.Gpt, defaultCmdGpt)
+	cfg.Commands.Remind = getEnvOrDefaultWithFallback("CMD_REMIND", cfg.Commands.Remind, defaultCmdRemind)
+	cfg.Commands.Meme = getEnvOrDefaultWithFallback("CMD_MEME", cfg.Commands.Meme, defaultCmdMeme)
+	cfg.Commands.Sticker = getEnvOrDefaultWithFallback("CMD_STICKER", cfg.Commands.Sticker, defaultCmdSticker)
+	cfg.Commands.Fact = getEnvOrDefaultWithFallback("CMD_FACT", cfg.Commands.Fact, defaultCmdFact)
+	cfg.Commands.Roulette = getEnvOrDefaultWithFallback("CMD_ROULETTE", cfg.Commands.Roulette, defaultCmdRoulette)
+	cfg.Commands.Tts = getEnvOrDefaultWithFallback("CMD_TTS", cfg.Commands.Tts, defaultCmdTts)
+}
+
+func getEnvOrDefaultWithFallback(envKey, yamlValue, defaultValue string) string {
+	if env := os.Getenv(envKey); env != "" {
+		return env
+	}
+	if yamlValue != "" {
+		return yamlValue
+	}
+	return defaultValue
 }
 
 func setDefaults(cfg *Config) {
 	cfg.Bot.Language = defaultLanguage
 	cfg.Schedule.WinnerReset = defaultWinnerReset
 	cfg.Schedule.AutoRoulette = defaultAutoRoulette
+	cfg.Commands.Start = defaultCmdStart
+	cfg.Commands.Help = defaultCmdHelp
+	cfg.Commands.Gpt = defaultCmdGpt
+	cfg.Commands.Remind = defaultCmdRemind
+	cfg.Commands.Meme = defaultCmdMeme
+	cfg.Commands.Sticker = defaultCmdSticker
+	cfg.Commands.Fact = defaultCmdFact
+	cfg.Commands.Roulette = defaultCmdRoulette
+	cfg.Commands.Tts = defaultCmdTts
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

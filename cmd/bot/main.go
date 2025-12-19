@@ -57,23 +57,26 @@ func main() {
 	ttsClient := tts.NewClient()
 
 	router := telegram.NewRouter()
-	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator, ttsClient)
+	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator, ttsClient, &cfg.Commands)
 
-	router.Register("start", telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
-	router.Register("help", telegram.WithRecover(telegram.WithLogging(handlers.HandleHelp)))
-	router.Register("gpt", telegram.WithRecover(telegram.WithLogging(handlers.HandleGPT)))
-	router.Register("remind", telegram.WithRecover(telegram.WithLogging(handlers.HandleRemind)))
-	router.Register("meme", telegram.WithRecover(telegram.WithLogging(handlers.HandleMeme)))
-	router.Register("sticker", telegram.WithRecover(telegram.WithLogging(handlers.HandleSticker)))
-	router.Register("fact", telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
-	router.Register("stats", telegram.WithRecover(telegram.WithLogging(handlers.HandleStats)))
-	router.Register("tts", telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
+	cmds := &cfg.Commands
+	router.Register(cmds.Start, telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
+	router.Register(cmds.Help, telegram.WithRecover(telegram.WithLogging(handlers.HandleHelp)))
+	router.Register(cmds.Gpt, telegram.WithRecover(telegram.WithLogging(handlers.HandleGPT)))
+	router.Register(cmds.Remind, telegram.WithRecover(telegram.WithLogging(handlers.HandleRemind)))
+	router.Register(cmds.Meme, telegram.WithRecover(telegram.WithLogging(handlers.HandleMeme)))
+	router.Register(cmds.Sticker, telegram.WithRecover(telegram.WithLogging(handlers.HandleSticker)))
+	router.Register(cmds.Fact, telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
+	router.Register(cmds.Roulette, telegram.WithRecover(telegram.WithLogging(handlers.HandleRoulette)))
+	router.Register(cmds.Tts, telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
 
 	autoRegister := telegram.NewAutoRegisterMiddleware(svc, router)
 	bot := telegram.NewBot(client, autoRegister)
 
-	registerBotCommands(client, translator)
-	sched := startScheduler(cfg, svc, client, translator)
+	sentences := telegram.NewSentenceProvider()
+
+	registerBotCommands(client, translator, &cfg.Commands)
+	sched := startScheduler(cfg, svc, client, translator, sentences)
 	defer sched.Stop()
 
 	go runReminderChecker(ctx, svc, client, translator)
@@ -82,7 +85,7 @@ func main() {
 	bot.Start(ctx)
 }
 
-func startScheduler(cfg *config.Config, svc *app.Service, client *telegram.Client, t *i18n.Translator) *scheduler.Scheduler {
+func startScheduler(cfg *config.Config, svc *app.Service, client *telegram.Client, t *i18n.Translator, sentences *telegram.SentenceProvider) *scheduler.Scheduler {
 	sched := scheduler.New()
 
 	_ = sched.Register(scheduler.Job{
@@ -94,24 +97,25 @@ func startScheduler(cfg *config.Config, svc *app.Service, client *telegram.Clien
 	_ = sched.Register(scheduler.Job{
 		Name:     "auto_roulette",
 		Schedule: cfg.Schedule.AutoRoulette,
-		Func:     autoRouletteJob(svc, client, t),
+		Func:     autoRouletteJob(svc, client, t, sentences),
 	})
 
 	sched.Start()
 	return sched
 }
 
-func autoRouletteJob(svc *app.Service, client *telegram.Client, t *i18n.Translator) func(ctx context.Context) error {
+func autoRouletteJob(svc *app.Service, client *telegram.Client, t *i18n.Translator, sentences *telegram.SentenceProvider) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		results, err := svc.RunAutoRoulette(ctx)
 		if err != nil {
 			return err
 		}
 
-		alias := t.Get(i18n.KeyStatsAlias)
+		alias := t.Get(i18n.KeyRouletteAlias)
 		for _, r := range results {
-			msg := fmt.Sprintf(t.Get(i18n.KeyStatsAutoWinner), alias, formatUserLink(r.Winner.User))
-			if err := client.SendMessage(r.ChatID, msg); err != nil {
+			winnerName := formatUserLink(r.Winner.User)
+			fallbackMsg := fmt.Sprintf(t.Get(i18n.KeyRouletteAutoWinner), alias, winnerName)
+			if err := sentences.SendSequence(client, r.ChatID, alias, winnerName, fallbackMsg); err != nil {
 				slog.Error("Failed to send auto roulette result", "chat", r.ChatID, "error", err)
 			}
 		}
@@ -153,17 +157,17 @@ func checkReminders(ctx context.Context, svc *app.Service, client *telegram.Clie
 	}
 }
 
-func registerBotCommands(client *telegram.Client, t *i18n.Translator) {
+func registerBotCommands(client *telegram.Client, t *i18n.Translator, cmds *config.CommandsConfig) {
 	commands := []telegram.BotCommand{
-		{Command: "start", Description: t.Get(i18n.KeyCmdStart)},
-		{Command: "help", Description: t.Get(i18n.KeyCmdHelp)},
-		{Command: "gpt", Description: t.Get(i18n.KeyCmdGpt)},
-		{Command: "remind", Description: t.Get(i18n.KeyCmdRemind)},
-		{Command: "meme", Description: t.Get(i18n.KeyCmdMeme)},
-		{Command: "sticker", Description: t.Get(i18n.KeyCmdSticker)},
-		{Command: "fact", Description: t.Get(i18n.KeyCmdFact)},
-		{Command: "stats", Description: t.Get(i18n.KeyCmdStats)},
-		{Command: "tts", Description: t.Get(i18n.KeyCmdTts)},
+		{Command: cmds.Start, Description: t.Get(i18n.KeyCmdStart)},
+		{Command: cmds.Help, Description: t.Get(i18n.KeyCmdHelp)},
+		{Command: cmds.Gpt, Description: t.Get(i18n.KeyCmdGpt)},
+		{Command: cmds.Remind, Description: t.Get(i18n.KeyCmdRemind)},
+		{Command: cmds.Meme, Description: t.Get(i18n.KeyCmdMeme)},
+		{Command: cmds.Sticker, Description: t.Get(i18n.KeyCmdSticker)},
+		{Command: cmds.Fact, Description: t.Get(i18n.KeyCmdFact)},
+		{Command: cmds.Roulette, Description: t.Get(i18n.KeyCmdRoulette)},
+		{Command: cmds.Tts, Description: t.Get(i18n.KeyCmdTts)},
 	}
 
 	if err := client.SetMyCommands(commands); err != nil {

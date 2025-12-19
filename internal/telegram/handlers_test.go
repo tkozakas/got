@@ -10,76 +10,91 @@ import (
 	"got/internal/app/model"
 	"got/internal/groq"
 	"got/internal/redis"
+	"got/pkg/config"
 	"got/pkg/i18n"
 )
 
 func newTestTranslator() *i18n.Translator {
 	return i18n.NewWithTranslations("en", map[string]string{
-		"help_header":          "*Available commands:*\n",
-		"cmd_start":            "Start the bot",
-		"cmd_help":             "Show available commands",
-		"cmd_gpt":              "Chat with AI",
-		"cmd_remind":           "Set a reminder",
-		"cmd_meme":             "Get a random meme",
-		"cmd_sticker":          "Get a random sticker",
-		"cmd_fact":             "Get a random fact",
-		"cmd_stats":            "Daily winner game",
-		"cmd_tts":              "Convert text to speech",
-		"welcome":              "Welcome! I am ready.",
-		"gpt_usage":            "Usage: /gpt <prompt>",
-		"gpt_no_key":           "GPT is not configured.",
-		"gpt_cleared":          "Conversation history cleared.",
-		"gpt_error":            "Failed to get AI response.",
-		"gpt_models_header":    "Available models:\n",
-		"gpt_image_usage":      "Usage: /gpt image <prompt>",
-		"gpt_model_set":        "Model set to: %s",
-		"gpt_model_invalid":    "Invalid model. Available models:\n",
-		"gpt_memory_header":    "Memory stats:\n",
-		"gpt_memory_stats":     "Messages: %d, Characters: %d",
-		"gpt_memory_empty":     "No conversation history.",
-		"gpt_memory_no_redis":  "Memory feature is not available.",
-		"tts_usage":            "Usage: /tts <text to speak>",
-		"tts_error":            "Failed to generate speech.",
-		"sticker_usage":        "Reply to a sticker with /sticker add",
-		"sticker_added":        "Sticker added!",
-		"sticker_error":        "Failed to process sticker.",
-		"sticker_remove_usage": "Reply to a sticker with /sticker remove",
-		"sticker_removed":      "Sticker removed!",
-		"sticker_list_header":  "You have %d stickers saved.",
-		"no_stickers":          "No stickers saved yet.",
-		"fact_usage":           "Usage: /fact add <text>",
-		"fact_added":           "Fact added!",
-		"fact_error":           "Failed to process fact.",
-		"fact_format":          "Fun fact: %s",
-		"no_facts":             "No facts saved yet.",
-		"meme_usage":           "Usage: /meme add <subreddit>",
-		"meme_added":           "Subreddit r/%s added!",
-		"meme_removed":         "Subreddit r/%s removed!",
-		"meme_list_header":     "Saved subreddits:\n",
-		"meme_error":           "Failed to fetch meme from ",
-		"meme_count_invalid":   "Count must be between 1 and 5.",
-		"subreddit_error":      "Failed to process subreddit.",
-		"remind_usage":         "Usage: /remind <duration> <message>",
-		"remind_invalid_time":  "Invalid time format.",
-		"remind_success":       "Reminder set for %s.",
-		"remind_no_pending":    "No pending reminders.",
-		"remind_list_error":    "Failed to list reminders.",
-		"remind_header":        "*Pending reminders:*\n",
-		"remind_format":        "#%d: %s (at %s)\n",
-		"remind_delete_usage":  "Usage: /remind delete <id>",
-		"remind_deleted":       "Reminder deleted.",
-		"remind_delete_error":  "Failed to delete reminder.",
-		"stats_usage":          "Usage: /stats [year|all]",
-		"stats_no_stats":       "No stats found.",
-		"stats_no_users":       "No users registered.",
-		"stats_alias":          "Winner",
-		"stats_winner_exists":  "Today's %s: %s with %d points!",
-		"stats_winner_new":     "New %s: %s!",
-		"stats_header":         "Stats for %d",
-		"stats_header_all":     "All-time stats",
-		"stats_footer":         "Total: %d users",
-		"stats_user":           "%d. %s: %d points",
+		"help_header":            "*Available commands:*\n",
+		"cmd_start":              "Start the bot",
+		"cmd_help":               "Show available commands",
+		"cmd_gpt":                "Chat with AI",
+		"cmd_remind":             "Set a reminder",
+		"cmd_meme":               "Get a random meme",
+		"cmd_sticker":            "Get a random sticker",
+		"cmd_fact":               "Get a random fact",
+		"cmd_roulette":           "Daily winner roulette",
+		"cmd_tts":                "Convert text to speech",
+		"welcome":                "Welcome! I am ready.",
+		"gpt_usage":              "Usage: /gpt <prompt>",
+		"gpt_no_key":             "GPT is not configured.",
+		"gpt_cleared":            "Conversation history cleared.",
+		"gpt_error":              "Failed to get AI response.",
+		"gpt_models_header":      "Available models:\n",
+		"gpt_image_usage":        "Usage: /gpt image <prompt>",
+		"gpt_model_set":          "Model set to: %s",
+		"gpt_model_invalid":      "Invalid model. Available models:\n",
+		"gpt_memory_header":      "Memory stats:\n",
+		"gpt_memory_stats":       "Messages: %d, Characters: %d",
+		"gpt_memory_empty":       "No conversation history.",
+		"gpt_memory_no_redis":    "Memory feature is not available.",
+		"tts_usage":              "Usage: /tts <text to speak>",
+		"tts_error":              "Failed to generate speech.",
+		"sticker_usage":          "Reply to a sticker with /sticker add",
+		"sticker_added":          "Sticker added!",
+		"sticker_error":          "Failed to process sticker.",
+		"sticker_remove_usage":   "Reply to a sticker with /sticker remove",
+		"sticker_removed":        "Sticker removed!",
+		"sticker_list_header":    "*Available Sticker Sets:*\n\n",
+		"no_stickers":            "No stickers saved yet.",
+		"fact_usage":             "Usage: /fact add <text>",
+		"fact_added":             "Fact added!",
+		"fact_error":             "Failed to process fact.",
+		"fact_format":            "Fun fact: %s",
+		"no_facts":               "No facts saved yet.",
+		"meme_usage":             "Usage: /meme add <subreddit>",
+		"meme_added":             "Subreddit r/%s added!",
+		"meme_removed":           "Subreddit r/%s removed!",
+		"meme_list_header":       "Saved subreddits:\n",
+		"meme_error":             "Failed to fetch meme from ",
+		"meme_count_invalid":     "Count must be between 1 and 5.",
+		"subreddit_error":        "Failed to process subreddit.",
+		"remind_usage":           "Usage: /remind <duration> <message>",
+		"remind_invalid_time":    "Invalid time format.",
+		"remind_success":         "Reminder set for %s.",
+		"remind_no_pending":      "No pending reminders.",
+		"remind_list_error":      "Failed to list reminders.",
+		"remind_header":          "*Pending reminders:*\n",
+		"remind_format":          "#%d: %s (at %s)\n",
+		"remind_delete_usage":    "Usage: /remind delete <id>",
+		"remind_deleted":         "Reminder deleted.",
+		"remind_delete_error":    "Failed to delete reminder.",
+		"roulette_usage":         "Usage: /roulette [year|all]",
+		"roulette_no_stats":      "No stats found.",
+		"roulette_no_users":      "No users registered.",
+		"roulette_alias":         "Winner",
+		"roulette_winner_exists": "Today's %s: %s with %d points!",
+		"roulette_winner_new":    "New %s: %s!",
+		"roulette_header":        "Stats for %d",
+		"roulette_header_all":    "All-time stats",
+		"roulette_footer":        "Total: %d users",
+		"roulette_user":          "%d. %s: %d points",
 	})
+}
+
+func newTestCommandsConfig() *config.CommandsConfig {
+	return &config.CommandsConfig{
+		Start:    "start",
+		Help:     "help",
+		Gpt:      "gpt",
+		Remind:   "remind",
+		Meme:     "meme",
+		Sticker:  "sticker",
+		Fact:     "fact",
+		Roulette: "roulette",
+		Tts:      "tts",
+	}
 }
 
 func TestHandleHelp(t *testing.T) {
@@ -88,16 +103,15 @@ func TestHandleHelp(t *testing.T) {
 		wantContains []string
 	}{
 		{
-			name: "Help message contains all commands",
+			name: "Help message contains all user-facing commands",
 			wantContains: []string{
-				"/start",
-				"/help",
 				"/gpt",
 				"/remind",
 				"/meme",
 				"/sticker",
 				"/fact",
-				"/stats",
+				"/roulette",
+				"/tts",
 				"Available commands",
 			},
 		},
@@ -162,15 +176,15 @@ func TestHandleHelpAllCommandsListed(t *testing.T) {
 		t.Fatalf("HandleHelp() error = %v", err)
 	}
 
+	// User-facing commands (start and help are excluded from help message)
 	expectedCommands := []string{
-		"/start",
-		"/help",
 		"/gpt",
 		"/remind",
 		"/meme",
 		"/sticker",
 		"/fact",
-		"/stats",
+		"/roulette",
+		"/tts",
 	}
 
 	for _, cmd := range expectedCommands {
@@ -179,10 +193,11 @@ func TestHandleHelpAllCommandsListed(t *testing.T) {
 		}
 	}
 
+	// Count commands by looking for markdown-formatted command lines
 	lines := strings.Split(strings.TrimSpace(sentMessage), "\n")
 	commandCount := 0
 	for _, line := range lines {
-		if strings.HasPrefix(line, "/") {
+		if strings.Contains(line, "`/") {
 			commandCount++
 		}
 	}
@@ -216,15 +231,15 @@ func TestHandleHelpCommandDescriptions(t *testing.T) {
 		t.Fatalf("HandleHelp() error = %v", err)
 	}
 
+	// Descriptions for user-facing commands (start and help are excluded)
 	expectedDescriptions := []string{
-		"Start the bot",
-		"Show available commands",
 		"Chat with AI",
 		"Set a reminder",
 		"Get a random meme",
 		"Get a random sticker",
 		"Get a random fact",
-		"Daily winner game",
+		"Daily winner roulette",
+		"Convert text to speech",
 	}
 
 	for _, desc := range expectedDescriptions {
@@ -247,7 +262,7 @@ func newTestServiceForHandlers() *app.Service {
 }
 
 func newTestBotHandlers(client *Client, svc *app.Service) *BotHandlers {
-	return NewBotHandlers(client, svc, nil, nil, newTestTranslator(), nil)
+	return NewBotHandlers(client, svc, nil, nil, newTestTranslator(), nil, newTestCommandsConfig())
 }
 
 func newTestBotHandlersWithGPT(client *Client, svc *app.Service, gpt *groq.Client) *BotHandlers {
@@ -620,7 +635,7 @@ func TestHandleRemindDeleteSuccess(t *testing.T) {
 	}
 }
 
-func TestHandleStatsNoUsers(t *testing.T) {
+func TestHandleRouletteNoUsers(t *testing.T) {
 	var sentMessage string
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		payload := decodeJSONPayload(t, r)
@@ -648,15 +663,15 @@ func TestHandleStatsNoUsers(t *testing.T) {
 
 	update := &Update{
 		Message: &Message{
-			Text: "/stats",
+			Text: "/roulette",
 			Chat: &Chat{ID: 123},
 			From: &User{ID: 456, UserName: "testuser"},
 		},
 	}
 
-	err := handlers.HandleStats(context.Background(), update)
+	err := handlers.HandleRoulette(context.Background(), update)
 	if err != nil {
-		t.Fatalf("HandleStats() error = %v", err)
+		t.Fatalf("HandleRoulette() error = %v", err)
 	}
 
 	if !strings.Contains(sentMessage, "No users") {
@@ -664,7 +679,7 @@ func TestHandleStatsNoUsers(t *testing.T) {
 	}
 }
 
-func TestHandleStatsWithWinner(t *testing.T) {
+func TestHandleRouletteWithWinner(t *testing.T) {
 	var sentMessage string
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		payload := decodeJSONPayload(t, r)
@@ -699,15 +714,15 @@ func TestHandleStatsWithWinner(t *testing.T) {
 
 	update := &Update{
 		Message: &Message{
-			Text: "/stats",
+			Text: "/roulette",
 			Chat: &Chat{ID: 123},
 			From: &User{ID: 456, UserName: "testuser"},
 		},
 	}
 
-	err := handlers.HandleStats(context.Background(), update)
+	err := handlers.HandleRoulette(context.Background(), update)
 	if err != nil {
-		t.Fatalf("HandleStats() error = %v", err)
+		t.Fatalf("HandleRoulette() error = %v", err)
 	}
 
 	if !strings.Contains(sentMessage, "Winner") && !strings.Contains(sentMessage, "user1") {
@@ -715,7 +730,7 @@ func TestHandleStatsWithWinner(t *testing.T) {
 	}
 }
 
-func TestHandleStatsYear(t *testing.T) {
+func TestHandleRouletteYear(t *testing.T) {
 	var sentMessage string
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		payload := decodeJSONPayload(t, r)
@@ -745,15 +760,15 @@ func TestHandleStatsYear(t *testing.T) {
 
 	update := &Update{
 		Message: &Message{
-			Text: "/stats stats",
+			Text: "/roulette stats",
 			Chat: &Chat{ID: 123},
 			From: &User{ID: 456, UserName: "testuser"},
 		},
 	}
 
-	err := handlers.HandleStats(context.Background(), update)
+	err := handlers.HandleRoulette(context.Background(), update)
 	if err != nil {
-		t.Fatalf("HandleStats() error = %v", err)
+		t.Fatalf("HandleRoulette() error = %v", err)
 	}
 
 	if !strings.Contains(sentMessage, "Stats for") {
@@ -761,7 +776,7 @@ func TestHandleStatsYear(t *testing.T) {
 	}
 }
 
-func TestHandleStatsAll(t *testing.T) {
+func TestHandleRouletteAll(t *testing.T) {
 	var sentMessage string
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		payload := decodeJSONPayload(t, r)
@@ -791,15 +806,15 @@ func TestHandleStatsAll(t *testing.T) {
 
 	update := &Update{
 		Message: &Message{
-			Text: "/stats all",
+			Text: "/roulette all",
 			Chat: &Chat{ID: 123},
 			From: &User{ID: 456, UserName: "testuser"},
 		},
 	}
 
-	err := handlers.HandleStats(context.Background(), update)
+	err := handlers.HandleRoulette(context.Background(), update)
 	if err != nil {
-		t.Fatalf("HandleStats() error = %v", err)
+		t.Fatalf("HandleRoulette() error = %v", err)
 	}
 
 	if !strings.Contains(sentMessage, "All-time") {
@@ -1175,7 +1190,10 @@ func TestHandleStickerList(t *testing.T) {
 	client := newTestClient(server.URL)
 	mockSticker := &mockStickerRepo{
 		listByChatFunc: func(ctx context.Context, chatID int64) ([]*model.Sticker, error) {
-			return []*model.Sticker{{FileID: "abc"}, {FileID: "def"}}, nil
+			return []*model.Sticker{
+				{FileID: "abc", StickerSetName: "cool_stickers"},
+				{FileID: "def", StickerSetName: "funny_pack"},
+			}, nil
 		},
 	}
 	svc := app.NewService(
@@ -1201,8 +1219,11 @@ func TestHandleStickerList(t *testing.T) {
 		t.Fatalf("HandleSticker() error = %v", err)
 	}
 
-	if !strings.Contains(sentMessage, "2") {
-		t.Errorf("expected sticker count, got: %s", sentMessage)
+	if !strings.Contains(sentMessage, "Available Sticker Sets") {
+		t.Errorf("expected sticker list header, got: %s", sentMessage)
+	}
+	if !strings.Contains(sentMessage, "cool_stickers") || !strings.Contains(sentMessage, "funny_pack") {
+		t.Errorf("expected sticker set names in list, got: %s", sentMessage)
 	}
 }
 

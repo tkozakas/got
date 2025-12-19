@@ -12,8 +12,15 @@ type Middleware func(HandlerFunc) HandlerFunc
 func WithLogging(next HandlerFunc) HandlerFunc {
 	return func(ctx context.Context, update *Update) error {
 		if update.Message != nil {
+			username := ""
+			if update.Message.From != nil {
+				username = update.Message.From.UserName
+				if username == "" {
+					username = update.Message.From.FirstName
+				}
+			}
 			slog.Info("User command received",
-				"user", update.Message.From.UserName,
+				"user", username,
 				"command", update.Message.Command(),
 			)
 		}

@@ -54,6 +54,20 @@ func (c *Client) GetUpdates(offset int) ([]Update, error) {
 
 func (c *Client) SendMessage(chatID int64, text string) error {
 	payload := map[string]any{
+		"chat_id": chatID,
+		"text":    text,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(sendMessageCMD, data)
+}
+
+func (c *Client) SendMessageMarkdown(chatID int64, text string) error {
+	payload := map[string]any{
 		"chat_id":    chatID,
 		"text":       text,
 		"parse_mode": "Markdown",

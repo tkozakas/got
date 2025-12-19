@@ -1,0 +1,84 @@
+{
+  "groups": [
+    {
+      "id": "dramatic_satellite",
+      "sentences": [
+        "So... who is today's *%s*?",
+        "_Military satellite launched, access codes inside..._",
+        "_No way!_",
+        "Today's adorable *%s* is %s"
+      ]
+    },
+    {
+      "id": "police",
+      "sentences": [
+        "*Woop-woop!* That's the sound of da *%s-police*!",
+        "_(Grumbling) Could've been doing actual work instead_",
+        "_Capturing the suspect..._",
+        "WHOOSH AND YOU'RE THE *%s* %s"
+      ]
+    },
+    {
+      "id": "search_mode",
+      "sentences": [
+        "_Initiating search_ for today's *%s*...",
+        "_Military satellite launched, access codes inside..._",
+        "_What have we become..._",
+        "What? Where? When? And you're today's *%s* %s"
+      ]
+    },
+    {
+      "id": "magic_spell",
+      "sentences": [
+        "_Let's do some magic..._",
+        "_Sleepily looking at papers_",
+        "_Capturing the suspect..._",
+        "Well aren't you a *%s* %s"
+      ]
+    },
+    {
+      "id": "grumpy_game",
+      "sentences": [
+        "_Playing your games again? Fine..._",
+        "_I'm in danger, systems damaged!_",
+        "Aha! Congratulations! Today you're the *%s* %s"
+      ]
+    },
+    {
+      "id": "sleepy_search",
+      "sentences": [
+        "_Where is he..._",
+        "_Oho-ho..._",
+        "_Why did you wake me up..._",
+        "And today's wonderful person is... oh wait, error, just a *%s* %s"
+      ]
+    },
+    {
+      "id": "system_hack",
+      "sentences": [
+        "_System breached. Damage sustained. Countermeasures initiated._",
+        "_Sleepily looking at papers_",
+        "_What have we become..._",
+        "WHOOSH AND YOU'RE THE *%s* %s"
+      ]
+    },
+    {
+      "id": "script_run",
+      "sentences": [
+        "_RUNNING 'TYPIDOR.SH'..._",
+        "_Military satellite launched, access codes inside..._",
+        "_High priority to mobile unit._",
+        "Aha! Congratulations! Today you're the *%s* %s"
+      ]
+    },
+    {
+      "id": "curious_check",
+      "sentences": [
+        "_What do we have here?_",
+        "_Come on, let's see who's cool..._",
+        "_What have we become..._",
+        "WHOOSH AND YOU'RE THE *%s* %s"
+      ]
+    }
+  ]
+}

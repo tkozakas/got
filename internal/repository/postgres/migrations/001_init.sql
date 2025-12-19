@@ -75,14 +75,3 @@ CREATE TABLE IF NOT EXISTS stats (
 
 CREATE INDEX IF NOT EXISTS idx_stats_chat_year ON stats(chat_id, year);
 CREATE INDEX IF NOT EXISTS idx_stats_winner ON stats(chat_id, year) WHERE is_winner = TRUE;
-
--- +migrate Down
-
-DROP TABLE IF EXISTS stats;
-DROP TABLE IF EXISTS reminders;
-DROP TABLE IF EXISTS facts;
-DROP TABLE IF EXISTS stickers;
-DROP TABLE IF EXISTS subreddits;
-DROP TABLE IF EXISTS chat_users;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS chats;
