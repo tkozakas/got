@@ -1,7 +1,7 @@
 services:
   bot:
     container_name: got
-    image: got:latest
+    image: ${BOT_IMAGE:-got:latest}
     build:
       context: .
       dockerfile: Dockerfile
