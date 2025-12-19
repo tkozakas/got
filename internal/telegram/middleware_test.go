@@ -10,6 +10,7 @@ import (
 
 type mockChatRepo struct {
 	saveFunc func(ctx context.Context, chat *model.Chat) error
+	getFunc  func(ctx context.Context, chatID int64) (*model.Chat, error)
 }
 
 func (m *mockChatRepo) Save(ctx context.Context, chat *model.Chat) error {
@@ -20,6 +21,9 @@ func (m *mockChatRepo) Save(ctx context.Context, chat *model.Chat) error {
 }
 
 func (m *mockChatRepo) Get(ctx context.Context, chatID int64) (*model.Chat, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx, chatID)
+	}
 	return nil, nil
 }
 
@@ -30,6 +34,7 @@ func (m *mockChatRepo) ListAll(ctx context.Context) ([]*model.Chat, error) {
 type mockUserRepo struct {
 	saveFunc      func(ctx context.Context, user *model.User) error
 	addToChatFunc func(ctx context.Context, userID, chatID int64) error
+	getFunc       func(ctx context.Context, userID int64) (*model.User, error)
 }
 
 func (m *mockUserRepo) Save(ctx context.Context, user *model.User) error {
@@ -40,6 +45,9 @@ func (m *mockUserRepo) Save(ctx context.Context, user *model.User) error {
 }
 
 func (m *mockUserRepo) Get(ctx context.Context, userID int64) (*model.User, error) {
+	if m.getFunc != nil {
+		return m.getFunc(ctx, userID)
+	}
 	return nil, nil
 }
 
@@ -234,7 +242,7 @@ func newTestService(chatRepo *mockChatRepo, userRepo *mockUserRepo) *app.Service
 	)
 }
 
-func TestAutoRegisterMiddleware_Handle(t *testing.T) {
+func TestAutoRegisterMiddlewareHandle(t *testing.T) {
 	tests := []struct {
 		name           string
 		update         *Update
@@ -338,7 +346,7 @@ func TestAutoRegisterMiddleware_Handle(t *testing.T) {
 	}
 }
 
-func TestAutoRegisterMiddleware_PropagatesNextError(t *testing.T) {
+func TestAutoRegisterMiddlewarePropagatesNextError(t *testing.T) {
 	svc := newTestService(&mockChatRepo{}, &mockUserRepo{})
 	expectedErr := errors.New("next handler error")
 	next := &mockHandler{err: expectedErr}

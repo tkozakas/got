@@ -247,7 +247,7 @@ func TestServiceListStickers(t *testing.T) {
 }
 
 func TestServiceSubredditOperations(t *testing.T) {
-	t.Run("AddSubreddit", func(t *testing.T) {
+	t.Run("addSubreddit", func(t *testing.T) {
 		subRepo := &MockSubredditRepository{}
 		svc := NewService(&MockChatRepository{}, &MockUserRepository{}, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, subRepo, &MockStatRepository{})
 
@@ -266,7 +266,7 @@ func TestServiceSubredditOperations(t *testing.T) {
 		}
 	})
 
-	t.Run("GetRandomSubreddit", func(t *testing.T) {
+	t.Run("getRandomSubreddit", func(t *testing.T) {
 		subRepo := &MockSubredditRepository{}
 		svc := NewService(&MockChatRepository{}, &MockUserRepository{}, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, subRepo, &MockStatRepository{})
 
@@ -284,7 +284,7 @@ func TestServiceSubredditOperations(t *testing.T) {
 		}
 	})
 
-	t.Run("ListSubreddits", func(t *testing.T) {
+	t.Run("listSubreddits", func(t *testing.T) {
 		subRepo := &MockSubredditRepository{}
 		svc := NewService(&MockChatRepository{}, &MockUserRepository{}, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, subRepo, &MockStatRepository{})
 
@@ -302,7 +302,7 @@ func TestServiceSubredditOperations(t *testing.T) {
 		}
 	})
 
-	t.Run("RemoveSubreddit", func(t *testing.T) {
+	t.Run("removeSubreddit", func(t *testing.T) {
 		subRepo := &MockSubredditRepository{}
 		svc := NewService(&MockChatRepository{}, &MockUserRepository{}, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, subRepo, &MockStatRepository{})
 
@@ -721,7 +721,7 @@ func TestServiceRunAutoRoulette(t *testing.T) {
 	}
 }
 
-func TestServiceRunAutoRoulette_ListAllError(t *testing.T) {
+func TestServiceRunAutoRouletteListAllError(t *testing.T) {
 	chatRepo := &MockChatRepository{}
 	svc := NewService(chatRepo, &MockUserRepository{}, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, &MockSubredditRepository{}, &MockStatRepository{})
 

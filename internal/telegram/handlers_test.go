@@ -7,109 +7,11 @@ import (
 	"testing"
 
 	"got/internal/app"
+	"got/internal/app/model"
 	"got/internal/groq"
+	"got/internal/redis"
 	"got/pkg/i18n"
 )
-
-type mockGroqClient struct {
-	models       []string
-	currentModel string
-	chatResponse string
-	chatError    error
-}
-
-func newMockGroqClient() *mockGroqClient {
-	return &mockGroqClient{
-		models: []string{
-			"llama-3.3-70b-versatile",
-			"llama-3.1-8b-instant",
-			"mixtral-8x7b-32768",
-			"gemma2-9b-it",
-		},
-		currentModel: "llama-3.3-70b-versatile",
-	}
-}
-
-func (m *mockGroqClient) ListModels() []string {
-	return m.models
-}
-
-func (m *mockGroqClient) SetModel(model string) error {
-	for _, mod := range m.models {
-		if mod == model {
-			m.currentModel = model
-			return nil
-		}
-	}
-	return &modelError{model: model}
-}
-
-func (m *mockGroqClient) Chat(ctx context.Context, prompt string, history []groq.Message) (string, error) {
-	if m.chatError != nil {
-		return "", m.chatError
-	}
-	return m.chatResponse, nil
-}
-
-type modelError struct {
-	model string
-}
-
-func (e *modelError) Error() string {
-	return "invalid model: " + e.model
-}
-
-type mockRedisClient struct {
-	history     map[int64][]groq.Message
-	getError    error
-	saveError   error
-	clearError  error
-	returnEmpty bool
-}
-
-func newMockRedisClient() *mockRedisClient {
-	return &mockRedisClient{
-		history: make(map[int64][]groq.Message),
-	}
-}
-
-func (m *mockRedisClient) GetHistory(ctx context.Context, chatID int64) ([]groq.Message, error) {
-	if m.getError != nil {
-		return nil, m.getError
-	}
-	if m.returnEmpty {
-		return nil, nil
-	}
-	return m.history[chatID], nil
-}
-
-func (m *mockRedisClient) SaveHistory(ctx context.Context, chatID int64, history []groq.Message) error {
-	if m.saveError != nil {
-		return m.saveError
-	}
-	m.history[chatID] = history
-	return nil
-}
-
-func (m *mockRedisClient) ClearHistory(ctx context.Context, chatID int64) error {
-	if m.clearError != nil {
-		return m.clearError
-	}
-	delete(m.history, chatID)
-	return nil
-}
-
-type GPTClient interface {
-	ListModels() []string
-	SetModel(model string) error
-	Chat(ctx context.Context, prompt string, history []groq.Message) (string, error)
-}
-
-type RedisClient interface {
-	GetHistory(ctx context.Context, chatID int64) ([]groq.Message, error)
-	SaveHistory(ctx context.Context, chatID int64, history []groq.Message) error
-	ClearHistory(ctx context.Context, chatID int64) error
-}
 
 func newTestTranslator() *i18n.Translator {
 	return i18n.NewWithTranslations("en", map[string]string{
@@ -348,64 +250,22 @@ func newTestBotHandlers(client *Client, svc *app.Service) *BotHandlers {
 	return NewBotHandlers(client, svc, nil, nil, newTestTranslator(), nil)
 }
 
-func newTestBotHandlersWithGPT(client *Client, svc *app.Service, gpt *groq.Client, _ *mockRedisClient) *BotHandlers {
+func newTestBotHandlersWithGPT(client *Client, svc *app.Service, gpt *groq.Client) *BotHandlers {
 	return &BotHandlers{
 		client:  client,
 		service: svc,
 		gpt:     gpt,
-		cache:   nil, // Cache tests require real Redis; use nil for unit tests
+		cache:   nil,
 		t:       newTestTranslator(),
 		tts:     nil,
 	}
 }
 
-func newTestBotHandlersWithMockGPT(client *Client, svc *app.Service, gpt *mockGroqClient, _ *mockRedisClient) *BotHandlers {
-	return &BotHandlers{
-		client:  client,
-		service: svc,
-		gpt:     newMockGroqWrapper(gpt),
-		cache:   nil, // Cache tests require real Redis; use nil for unit tests
-		t:       newTestTranslator(),
-		tts:     nil,
-	}
+func newTestBotHandlersWithGPTAndRedis(client *Client, svc *app.Service, gpt *groq.Client, cache *redis.Client) *BotHandlers {
+	return NewBotHandlers(client, svc, gpt, cache, newTestTranslator(), nil)
 }
 
-// mockGroqWrapper wraps mockGroqClient to satisfy *groq.Client type requirement
-// We use a real groq.Client with a test server for model operations
-func newMockGroqWrapper(mock *mockGroqClient) *groq.Client {
-	if mock == nil {
-		return nil
-	}
-	// Create a real client that we'll use for testing
-	return groq.NewClient("test-key")
-}
-
-// mockRedisWrapper converts mockRedisClient to satisfy the redis.Client interface
-func newMockRedisWrapper(mock *mockRedisClient) *mockRedisClientWrapper {
-	if mock == nil {
-		return nil
-	}
-	return &mockRedisClientWrapper{mock: mock}
-}
-
-// mockRedisClientWrapper wraps our mock to be used in place of *redis.Client
-type mockRedisClientWrapper struct {
-	mock *mockRedisClient
-}
-
-func (w *mockRedisClientWrapper) GetHistory(ctx context.Context, chatID int64) ([]groq.Message, error) {
-	return w.mock.GetHistory(ctx, chatID)
-}
-
-func (w *mockRedisClientWrapper) SaveHistory(ctx context.Context, chatID int64, history []groq.Message) error {
-	return w.mock.SaveHistory(ctx, chatID, history)
-}
-
-func (w *mockRedisClientWrapper) ClearHistory(ctx context.Context, chatID int64) error {
-	return w.mock.ClearHistory(ctx, chatID)
-}
-
-func TestHandleTTS_NoText(t *testing.T) {
+func TestHandleTTSNoText(t *testing.T) {
 	var sentMessage string
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		payload := decodeJSONPayload(t, r)
@@ -434,7 +294,7 @@ func TestHandleTTS_NoText(t *testing.T) {
 	}
 }
 
-func TestHandleTTS_NoTTSClient(t *testing.T) {
+func TestHandleTTSNoClient(t *testing.T) {
 	var sentMessage string
 	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
 		payload := decodeJSONPayload(t, r)
@@ -460,5 +320,545 @@ func TestHandleTTS_NoTTSClient(t *testing.T) {
 
 	if !strings.Contains(sentMessage, "Failed") {
 		t.Errorf("expected error message when TTS client is nil, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStartSuccess(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/start",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleStart(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleStart() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Welcome") {
+		t.Errorf("expected welcome message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindNoArgs(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Usage:") {
+		t.Errorf("expected usage message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindInvalidDuration(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind invalid test message",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Invalid") {
+		t.Errorf("expected invalid time message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindSuccess(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockChat := &mockChatRepo{
+		getFunc: func(ctx context.Context, chatID int64) (*model.Chat, error) {
+			return &model.Chat{ChatID: chatID}, nil
+		},
+	}
+	mockUser := &mockUserRepo{
+		getFunc: func(ctx context.Context, userID int64) (*model.User, error) {
+			return &model.User{UserID: userID, Username: "testuser"}, nil
+		},
+	}
+	mockReminder := &mockReminderRepo{
+		saveFunc: func(ctx context.Context, r *model.Reminder) error {
+			return nil
+		},
+	}
+	svc := app.NewService(
+		mockChat,
+		mockUser,
+		mockReminder,
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind 1h test reminder",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Reminder set") {
+		t.Errorf("expected success message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindListEmpty(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockReminder := &mockReminderRepo{
+		listByChatFunc: func(ctx context.Context, chatID int64) ([]*model.Reminder, error) {
+			return []*model.Reminder{}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		mockReminder,
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind list",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "No pending") {
+		t.Errorf("expected no pending reminders message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindListWithReminders(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockReminder := &mockReminderRepo{
+		listByChatFunc: func(ctx context.Context, chatID int64) ([]*model.Reminder, error) {
+			chat := &model.Chat{ChatID: chatID}
+			return []*model.Reminder{
+				{ReminderID: 1, Chat: chat, Message: "Test reminder 1"},
+				{ReminderID: 2, Chat: chat, Message: "Test reminder 2"},
+			}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		mockReminder,
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind list",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Pending reminders") {
+		t.Errorf("expected reminders list header, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindDeleteNoID(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind delete",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Usage:") {
+		t.Errorf("expected delete usage message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleRemindDeleteSuccess(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockReminder := &mockReminderRepo{
+		deleteFunc: func(ctx context.Context, reminderID int64, chatID int64) error {
+			return nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		mockReminder,
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/remind delete 1",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleRemind(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleRemind() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "deleted") {
+		t.Errorf("expected reminder deleted message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStatsNoUsers(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockUser := &mockUserRepo{}
+	mockStat := &mockStatRepo{
+		findWinnerByChatFunc: func(ctx context.Context, chatID int64, year int) (*model.Stat, error) {
+			return nil, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		mockUser,
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		mockStat,
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/stats",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleStats(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleStats() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "No users") {
+		t.Errorf("expected no users message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStatsWithWinner(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockStat := &mockStatRepo{
+		findByUserChatYearFunc: func(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error) {
+			return nil, nil
+		},
+		findWinnerByChatFunc: func(ctx context.Context, chatID int64, year int) (*model.Stat, error) {
+			return &model.Stat{
+				StatID:   1,
+				Score:    5,
+				IsWinner: true,
+				User:     &model.User{UserID: 1, Username: "user1"},
+			}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		mockStat,
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/stats",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleStats(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleStats() error = %v", err)
+	}
+
+	// Should either show winner or new winner message
+	if !strings.Contains(sentMessage, "Winner") && !strings.Contains(sentMessage, "user1") {
+		t.Errorf("expected winner message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStatsYear(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockStat := &mockStatRepo{
+		listByChatAndYearFunc: func(ctx context.Context, chatID int64, year int) ([]*model.Stat, error) {
+			return []*model.Stat{
+				{StatID: 1, Score: 10, User: &model.User{UserID: 1, Username: "user1"}},
+				{StatID: 2, Score: 5, User: &model.User{UserID: 2, Username: "user2"}},
+			}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		mockStat,
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/stats stats",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleStats(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleStats() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Stats for") {
+		t.Errorf("expected year stats header, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStatsAll(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockStat := &mockStatRepo{
+		listByChatFunc: func(ctx context.Context, chatID int64) ([]*model.Stat, error) {
+			return []*model.Stat{
+				{StatID: 1, Score: 100, User: &model.User{UserID: 1, Username: "user1"}},
+				{StatID: 2, Score: 50, User: &model.User{UserID: 2, Username: "user2"}},
+			}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		mockStat,
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/stats all",
+			Chat: &Chat{ID: 123},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	err := handlers.HandleStats(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleStats() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "All-time") {
+		t.Errorf("expected all-time stats header, got: %s", sentMessage)
+	}
+}
+
+func TestHandleGPTForget(t *testing.T) {
+	tests := []struct {
+		name         string
+		command      string
+		wantContains string
+	}{
+		{
+			name:         "ForgetClearsHistory",
+			command:      "/gpt forget",
+			wantContains: "cleared",
+		},
+		{
+			name:         "ClearClearsHistory",
+			command:      "/gpt clear",
+			wantContains: "cleared",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sentMessage string
+			server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+				payload := decodeJSONPayload(t, r)
+				sentMessage = payload["text"].(string)
+				w.WriteHeader(http.StatusOK)
+			})
+
+			client := newTestClient(server.URL)
+			svc := newTestServiceForHandlers()
+			gpt := groq.NewClient("test-key")
+			handlers := newTestBotHandlersWithGPT(client, svc, gpt)
+
+			update := &Update{
+				Message: &Message{
+					Text: tt.command,
+					Chat: &Chat{ID: 123},
+				},
+			}
+
+			err := handlers.HandleGPT(context.Background(), update)
+			if err != nil {
+				t.Fatalf("HandleGPT() error = %v", err)
+			}
+
+			if !strings.Contains(strings.ToLower(sentMessage), tt.wantContains) {
+				t.Errorf("expected message containing %q, got: %s", tt.wantContains, sentMessage)
+			}
+		})
 	}
 }
