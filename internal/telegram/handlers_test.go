@@ -9,7 +9,6 @@ import (
 	"got/internal/app"
 	"got/internal/app/model"
 	"got/internal/groq"
-	"got/internal/redis"
 	"got/pkg/i18n"
 )
 
@@ -259,10 +258,6 @@ func newTestBotHandlersWithGPT(client *Client, svc *app.Service, gpt *groq.Clien
 		t:       newTestTranslator(),
 		tts:     nil,
 	}
-}
-
-func newTestBotHandlersWithGPTAndRedis(client *Client, svc *app.Service, gpt *groq.Client, cache *redis.Client) *BotHandlers {
-	return NewBotHandlers(client, svc, gpt, cache, newTestTranslator(), nil)
 }
 
 func TestHandleTTSNoText(t *testing.T) {
@@ -714,7 +709,6 @@ func TestHandleStatsWithWinner(t *testing.T) {
 		t.Fatalf("HandleStats() error = %v", err)
 	}
 
-	// Should either show winner or new winner message
 	if !strings.Contains(sentMessage, "Winner") && !strings.Contains(sentMessage, "user1") {
 		t.Errorf("expected winner message, got: %s", sentMessage)
 	}
@@ -1009,6 +1003,388 @@ func TestFormatHistoryAsText(t *testing.T) {
 			got := formatHistoryAsText(tt.history)
 			if got != tt.want {
 				t.Errorf("formatHistoryAsText() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHandleFactNoFacts(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockFact := &mockFactRepo{
+		getRandomByChatFunc: func(ctx context.Context, chatID int64) (*model.Fact, error) {
+			return nil, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		mockFact,
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/fact",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleFact(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleFact() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "No facts") {
+		t.Errorf("expected no facts message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleFactWithFact(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockFact := &mockFactRepo{
+		getRandomByChatFunc: func(ctx context.Context, chatID int64) (*model.Fact, error) {
+			return &model.Fact{Comment: "The sky is blue"}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		mockFact,
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/fact",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleFact(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleFact() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "The sky is blue") {
+		t.Errorf("expected fact content, got: %s", sentMessage)
+	}
+}
+
+func TestHandleFactAddNoText(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/fact add",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleFact(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleFact() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Usage") {
+		t.Errorf("expected usage message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStickerNoStickers(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockSticker := &mockStickerRepo{
+		getRandomByChatFunc: func(ctx context.Context, chatID int64) (*model.Sticker, error) {
+			return nil, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		mockSticker,
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/sticker",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleSticker(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleSticker() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "No stickers") {
+		t.Errorf("expected no stickers message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStickerList(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockSticker := &mockStickerRepo{
+		listByChatFunc: func(ctx context.Context, chatID int64) ([]*model.Sticker, error) {
+			return []*model.Sticker{{FileID: "abc"}, {FileID: "def"}}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		mockSticker,
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/sticker list",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleSticker(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleSticker() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "2") {
+		t.Errorf("expected sticker count, got: %s", sentMessage)
+	}
+}
+
+func TestHandleStickerAddNoReply(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/sticker add",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleSticker(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleSticker() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Reply") {
+		t.Errorf("expected reply instruction, got: %s", sentMessage)
+	}
+}
+
+func TestHandleMemeListSubreddits(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	mockSub := &mockSubredditRepo{
+		listByChatFunc: func(ctx context.Context, chatID int64) ([]*model.Subreddit, error) {
+			return []*model.Subreddit{{Name: "funny"}, {Name: "memes"}}, nil
+		},
+	}
+	svc := app.NewService(
+		&mockChatRepo{},
+		&mockUserRepo{},
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		mockSub,
+		&mockStatRepo{},
+	)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/meme list",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleMeme(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleMeme() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "funny") || !strings.Contains(sentMessage, "memes") {
+		t.Errorf("expected subreddit list, got: %s", sentMessage)
+	}
+}
+
+func TestHandleMemeInvalidCount(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/meme 10",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleMeme(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleMeme() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "1 and 5") {
+		t.Errorf("expected count invalid message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleGPTNoKey(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt hello",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "not configured") {
+		t.Errorf("expected not configured message, got: %s", sentMessage)
+	}
+}
+
+func TestHandleGPTNoPrompt(t *testing.T) {
+	var sentMessage string
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		payload := decodeJSONPayload(t, r)
+		sentMessage = payload["text"].(string)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client := newTestClient(server.URL)
+	svc := newTestServiceForHandlers()
+	gpt := groq.NewClient("test-key")
+	handlers := newTestBotHandlersWithGPT(client, svc, gpt)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/gpt",
+			Chat: &Chat{ID: 123},
+		},
+	}
+
+	err := handlers.HandleGPT(context.Background(), update)
+	if err != nil {
+		t.Fatalf("HandleGPT() error = %v", err)
+	}
+
+	if !strings.Contains(sentMessage, "Usage") {
+		t.Errorf("expected usage message, got: %s", sentMessage)
+	}
+}
+
+func TestIsAnimatedURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{name: "gifExtension", url: "https://example.com/image.gif", want: true},
+		{name: "gifWithQuery", url: "https://example.com/image.gif?v=1", want: true},
+		{name: "mp4Extension", url: "https://example.com/video.mp4", want: true},
+		{name: "mp4WithQuery", url: "https://example.com/video.mp4?v=1", want: true},
+		{name: "jpgExtension", url: "https://example.com/image.jpg", want: false},
+		{name: "pngExtension", url: "https://example.com/image.png", want: false},
+		{name: "noExtension", url: "https://example.com/image", want: false},
+		{name: "upperCaseGif", url: "https://example.com/image.GIF", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAnimatedURL(tt.url)
+			if got != tt.want {
+				t.Errorf("isAnimatedURL(%q) = %v, want %v", tt.url, got, tt.want)
 			}
 		})
 	}

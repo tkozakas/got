@@ -213,28 +213,23 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 		}
 	}
 
-	// Parse count and optional subreddit from args
 	count := 1
 	var explicitSubreddit string
 
 	if len(parts) > 0 {
-		// Check if first arg is a number (count)
 		if n, err := strconv.Atoi(parts[0]); err == nil {
 			if n < 1 || n > 5 {
 				return h.client.SendMessage(chatID, h.t.Get(i18n.KeyMemeCountInvalid))
 			}
 			count = n
-			// Check for optional subreddit as second arg
 			if len(parts) > 1 {
 				explicitSubreddit = parts[1]
 			}
 		} else {
-			// First arg is not a number, treat it as subreddit name
 			explicitSubreddit = parts[0]
 		}
 	}
 
-	// Determine which subreddit to use
 	var subName string
 	if explicitSubreddit != "" {
 		subName = explicitSubreddit

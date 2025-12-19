@@ -239,13 +239,11 @@ func (c *Client) postJSON(endpoint string, data []byte) error {
 	return nil
 }
 
-// BotCommand represents a Telegram bot command.
 type BotCommand struct {
 	Command     string `json:"command"`
 	Description string `json:"description"`
 }
 
-// SetMyCommands registers bot commands with Telegram.
 func (c *Client) SetMyCommands(commands []BotCommand) error {
 	payload := map[string]any{
 		"commands": commands,

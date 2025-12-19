@@ -107,9 +107,8 @@ func TestServiceAddReminder(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	// Test missing chat
 	chatRepo.GetFunc = func(ctx context.Context, id int64) (*model.Chat, error) {
-		return nil, nil // Chat not found
+		return nil, nil
 	}
 	if err := svc.AddReminder(context.Background(), 1, 1, msg, dur); err == nil {
 		t.Error("want error for missing chat, got nil")

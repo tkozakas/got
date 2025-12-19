@@ -7,14 +7,11 @@ import (
 	"time"
 )
 
-// ParseDuration parses duration strings like "30s", "5m", "2h", "1d", "1h30m", "1d2h30m"
 func ParseDuration(s string) (time.Duration, error) {
-	// First try standard Go duration parsing
 	if d, err := time.ParseDuration(s); err == nil {
 		return d, nil
 	}
 
-	// Custom parsing for days and combined formats
 	re := regexp.MustCompile(`(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?`)
 	matches := re.FindStringSubmatch(s)
 
