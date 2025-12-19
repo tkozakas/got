@@ -615,3 +615,122 @@ func TestServiceGetPendingReminders(t *testing.T) {
 		t.Errorf("want %d reminders, got %d", len(expected), len(got))
 	}
 }
+
+func TestServiceRunAutoRoulette(t *testing.T) {
+	tests := []struct {
+		name            string
+		chats           []*model.Chat
+		existingWinners map[int64]bool
+		usersInChat     map[int64]*model.User
+		wantResults     int
+		wantErr         bool
+	}{
+		{
+			name:        "NoChats",
+			chats:       []*model.Chat{},
+			wantResults: 0,
+		},
+		{
+			name:            "AllChatsHaveWinners",
+			chats:           []*model.Chat{{ChatID: 1}, {ChatID: 2}},
+			existingWinners: map[int64]bool{1: true, 2: true},
+			wantResults:     0,
+		},
+		{
+			name:            "OneNewWinner",
+			chats:           []*model.Chat{{ChatID: 1}, {ChatID: 2}},
+			existingWinners: map[int64]bool{1: true},
+			usersInChat:     map[int64]*model.User{2: {UserID: 100, Username: "winner"}},
+			wantResults:     1,
+		},
+		{
+			name:            "NoUsersInChat",
+			chats:           []*model.Chat{{ChatID: 1}},
+			existingWinners: map[int64]bool{},
+			usersInChat:     map[int64]*model.User{},
+			wantResults:     0,
+		},
+		{
+			name:            "MultipleNewWinners",
+			chats:           []*model.Chat{{ChatID: 1}, {ChatID: 2}, {ChatID: 3}},
+			existingWinners: map[int64]bool{},
+			usersInChat: map[int64]*model.User{
+				1: {UserID: 100, Username: "user1"},
+				2: {UserID: 200, Username: "user2"},
+				3: {UserID: 300, Username: "user3"},
+			},
+			wantResults: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chatRepo := &MockChatRepository{}
+			userRepo := &MockUserRepository{}
+			statRepo := &MockStatRepository{}
+			svc := NewService(chatRepo, userRepo, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, &MockSubredditRepository{}, statRepo)
+
+			chatRepo.ListAllFunc = func(ctx context.Context) ([]*model.Chat, error) {
+				return tt.chats, nil
+			}
+
+			chatRepo.GetFunc = func(ctx context.Context, chatID int64) (*model.Chat, error) {
+				return &model.Chat{ChatID: chatID}, nil
+			}
+
+			statRepo.FindWinnerByChatFunc = func(ctx context.Context, chatID int64, year int) (*model.Stat, error) {
+				if tt.existingWinners[chatID] {
+					return &model.Stat{IsWinner: true}, nil
+				}
+				return nil, nil
+			}
+
+			userRepo.GetRandomByChatFunc = func(ctx context.Context, chatID int64) (*model.User, error) {
+				if user, ok := tt.usersInChat[chatID]; ok {
+					return user, nil
+				}
+				return nil, nil
+			}
+
+			userRepo.GetFunc = func(ctx context.Context, userID int64) (*model.User, error) {
+				for _, user := range tt.usersInChat {
+					if user.UserID == userID {
+						return user, nil
+					}
+				}
+				return nil, nil
+			}
+
+			statRepo.FindByUserChatYearFunc = func(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error) {
+				return nil, nil
+			}
+
+			statRepo.SaveFunc = func(ctx context.Context, s *model.Stat) error {
+				return nil
+			}
+
+			results, err := svc.RunAutoRoulette(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RunAutoRoulette() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if len(results) != tt.wantResults {
+				t.Errorf("want %d results, got %d", tt.wantResults, len(results))
+			}
+		})
+	}
+}
+
+func TestServiceRunAutoRoulette_ListAllError(t *testing.T) {
+	chatRepo := &MockChatRepository{}
+	svc := NewService(chatRepo, &MockUserRepository{}, &MockReminderRepository{}, &MockFactRepository{}, &MockStickerRepository{}, &MockSubredditRepository{}, &MockStatRepository{})
+
+	chatRepo.ListAllFunc = func(ctx context.Context) ([]*model.Chat, error) {
+		return nil, errMock
+	}
+
+	_, err := svc.RunAutoRoulette(context.Background())
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+}

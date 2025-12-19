@@ -6,10 +6,10 @@ import (
 	"got/internal/app/model"
 )
 
-// MockChatRepository
 type MockChatRepository struct {
-	SaveFunc func(ctx context.Context, chat *model.Chat) error
-	GetFunc  func(ctx context.Context, chatID int64) (*model.Chat, error)
+	SaveFunc    func(ctx context.Context, chat *model.Chat) error
+	GetFunc     func(ctx context.Context, chatID int64) (*model.Chat, error)
+	ListAllFunc func(ctx context.Context) ([]*model.Chat, error)
 }
 
 func (m *MockChatRepository) Save(ctx context.Context, chat *model.Chat) error {
@@ -18,8 +18,13 @@ func (m *MockChatRepository) Save(ctx context.Context, chat *model.Chat) error {
 func (m *MockChatRepository) Get(ctx context.Context, chatID int64) (*model.Chat, error) {
 	return m.GetFunc(ctx, chatID)
 }
+func (m *MockChatRepository) ListAll(ctx context.Context) ([]*model.Chat, error) {
+	if m.ListAllFunc != nil {
+		return m.ListAllFunc(ctx)
+	}
+	return nil, nil
+}
 
-// MockUserRepository
 type MockUserRepository struct {
 	SaveFunc            func(ctx context.Context, user *model.User) error
 	GetFunc             func(ctx context.Context, userID int64) (*model.User, error)
@@ -46,7 +51,6 @@ func (m *MockUserRepository) GetRandomByChat(ctx context.Context, chatID int64) 
 	return nil, nil
 }
 
-// MockReminderRepository
 type MockReminderRepository struct {
 	SaveFunc        func(ctx context.Context, reminder *model.Reminder) error
 	ListPendingFunc func(ctx context.Context) ([]*model.Reminder, error)
@@ -67,7 +71,6 @@ func (m *MockReminderRepository) ListByChat(ctx context.Context, chatID int64) (
 	return m.ListByChatFunc(ctx, chatID)
 }
 
-// MockFactRepository
 type MockFactRepository struct {
 	SaveFunc            func(ctx context.Context, fact *model.Fact) error
 	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Fact, error)
@@ -90,7 +93,6 @@ func (m *MockFactRepository) ListByChat(ctx context.Context, chatID int64) ([]*m
 	return nil, nil
 }
 
-// MockStickerRepository
 type MockStickerRepository struct {
 	SaveFunc            func(ctx context.Context, sticker *model.Sticker) error
 	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Sticker, error)
@@ -113,7 +115,6 @@ func (m *MockStickerRepository) ListByChat(ctx context.Context, chatID int64) ([
 	return nil, nil
 }
 
-// MockSubredditRepository
 type MockSubredditRepository struct {
 	SaveFunc            func(ctx context.Context, subreddit *model.Subreddit) error
 	GetRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Subreddit, error)
@@ -143,7 +144,6 @@ func (m *MockSubredditRepository) Delete(ctx context.Context, name string, chatI
 	return nil
 }
 
-// MockStatRepository
 type MockStatRepository struct {
 	SaveFunc               func(ctx context.Context, stat *model.Stat) error
 	FindByUserChatYearFunc func(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error)

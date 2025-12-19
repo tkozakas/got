@@ -8,6 +8,7 @@ import (
 type ChatRepository interface {
 	Save(ctx context.Context, chat *model.Chat) error
 	Get(ctx context.Context, chatID int64) (*model.Chat, error)
+	ListAll(ctx context.Context) ([]*model.Chat, error)
 }
 
 type UserRepository interface {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"got/internal/app"
+	"got/internal/app/model"
 	"got/internal/groq"
 	"got/internal/redis"
 	"got/internal/repository/postgres"
@@ -63,10 +64,11 @@ func main() {
 	router.Register("fact", telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
 	router.Register("stats", telegram.WithRecover(telegram.WithLogging(handlers.HandleStats)))
 
-	bot := telegram.NewBot(client, router)
+	autoRegister := telegram.NewAutoRegisterMiddleware(svc, router)
+	bot := telegram.NewBot(client, autoRegister)
 
 	registerBotCommands(client, translator)
-	sched := startScheduler(cfg, svc)
+	sched := startScheduler(cfg, svc, client, translator)
 	defer sched.Stop()
 
 	go runReminderChecker(ctx, svc, client, translator)
@@ -75,7 +77,7 @@ func main() {
 	bot.Start(ctx)
 }
 
-func startScheduler(cfg *config.Config, svc *app.Service) *scheduler.Scheduler {
+func startScheduler(cfg *config.Config, svc *app.Service, client *telegram.Client, t *i18n.Translator) *scheduler.Scheduler {
 	sched := scheduler.New()
 
 	_ = sched.Register(scheduler.Job{
@@ -84,8 +86,37 @@ func startScheduler(cfg *config.Config, svc *app.Service) *scheduler.Scheduler {
 		Func:     svc.ResetDailyWinners,
 	})
 
+	_ = sched.Register(scheduler.Job{
+		Name:     "auto_roulette",
+		Schedule: cfg.Schedule.AutoRoulette,
+		Func:     autoRouletteJob(svc, client, t),
+	})
+
 	sched.Start()
 	return sched
+}
+
+func autoRouletteJob(svc *app.Service, client *telegram.Client, t *i18n.Translator) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		results, err := svc.RunAutoRoulette(ctx)
+		if err != nil {
+			return err
+		}
+
+		alias := t.Get(i18n.KeyStatsAlias)
+		for _, r := range results {
+			msg := fmt.Sprintf(t.Get(i18n.KeyStatsAutoWinner), alias, formatUserLink(r.Winner.User))
+			if err := client.SendMessage(r.ChatID, msg); err != nil {
+				slog.Error("Failed to send auto roulette result", "chat", r.ChatID, "error", err)
+			}
+		}
+
+		return nil
+	}
+}
+
+func formatUserLink(user *model.User) string {
+	return fmt.Sprintf("[%s](tg://user?id=%d)", user.Username, user.UserID)
 }
 
 func runReminderChecker(ctx context.Context, svc *app.Service, client *telegram.Client, t *i18n.Translator) {

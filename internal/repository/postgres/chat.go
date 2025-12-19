@@ -44,3 +44,24 @@ func (r *ChatRepository) Get(ctx context.Context, chatID int64) (*model.Chat, er
 
 	return &chat, nil
 }
+
+func (r *ChatRepository) ListAll(ctx context.Context) ([]*model.Chat, error) {
+	query := `SELECT chat_id, chat_name FROM chats`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chats []*model.Chat
+	for rows.Next() {
+		var chat model.Chat
+		if err := rows.Scan(&chat.ChatID, &chat.ChatName); err != nil {
+			return nil, err
+		}
+		chats = append(chats, &chat)
+	}
+
+	return chats, rows.Err()
+}

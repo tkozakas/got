@@ -29,13 +29,6 @@ type Reminder struct {
 	Sent       bool      `json:"sent"`
 }
 
-type Sentence struct {
-	SentenceID  int64  `json:"sentence_id"`
-	GroupID     int64  `json:"group_id"`
-	OrderNumber int    `json:"order_number"`
-	Text        string `json:"text"`
-}
-
 type Sticker struct {
 	StickerID      string `json:"sticker_id"`
 	StickerSetName string `json:"sticker_set_name"`
@@ -56,4 +49,14 @@ type Stat struct {
 	Score    int64 `json:"score"`
 	Year     int   `json:"year"`
 	IsWinner bool  `json:"is_winner"`
+}
+
+type RedditResponse struct {
+	Memes []RedditMeme `json:"memes"`
+}
+
+type RedditMeme struct {
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Author string `json:"author"`
 }

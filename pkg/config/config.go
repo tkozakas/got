@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	defaultRedisAddr  = "localhost:6379"
-	defaultLanguage   = "en"
-	defaultConfigPath = "config.yaml"
+	defaultRedisAddr    = "localhost:6379"
+	defaultLanguage     = "en"
+	defaultConfigPath   = "config.yaml"
+	defaultWinnerReset  = "0 0 0 * * *"
+	defaultAutoRoulette = "0 0 11 * * *"
 )
 
 type Config struct {
@@ -28,7 +30,8 @@ type BotConfig struct {
 }
 
 type ScheduleConfig struct {
-	WinnerReset string `yaml:"winner_reset"`
+	WinnerReset  string `yaml:"winner_reset"`
+	AutoRoulette string `yaml:"auto_roulette"`
 }
 
 func Load() *Config {
@@ -56,10 +59,7 @@ func Load() *Config {
 	}
 
 	loadYAMLConfig(cfg)
-
-	if cfg.Bot.Language == "" {
-		cfg.Bot.Language = getEnvOrDefault("LANGUAGE", defaultLanguage)
-	}
+	applyEnvOverrides(cfg)
 
 	return cfg
 }
@@ -78,9 +78,33 @@ func loadYAMLConfig(cfg *Config) {
 	}
 }
 
+func applyEnvOverrides(cfg *Config) {
+	if lang := os.Getenv("BOT_LANGUAGE"); lang != "" {
+		cfg.Bot.Language = lang
+	}
+	if cfg.Bot.Language == "" {
+		cfg.Bot.Language = defaultLanguage
+	}
+
+	if schedule := os.Getenv("SCHEDULE_WINNER_RESET"); schedule != "" {
+		cfg.Schedule.WinnerReset = schedule
+	}
+	if cfg.Schedule.WinnerReset == "" {
+		cfg.Schedule.WinnerReset = defaultWinnerReset
+	}
+
+	if schedule := os.Getenv("SCHEDULE_AUTO_ROULETTE"); schedule != "" {
+		cfg.Schedule.AutoRoulette = schedule
+	}
+	if cfg.Schedule.AutoRoulette == "" {
+		cfg.Schedule.AutoRoulette = defaultAutoRoulette
+	}
+}
+
 func setDefaults(cfg *Config) {
 	cfg.Bot.Language = defaultLanguage
-	cfg.Schedule.WinnerReset = "0 0 * * *"
+	cfg.Schedule.WinnerReset = defaultWinnerReset
+	cfg.Schedule.AutoRoulette = defaultAutoRoulette
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

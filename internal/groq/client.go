@@ -16,7 +16,6 @@ const (
 	defaultModel   = "llama-3.3-70b-versatile"
 	roleSystem     = "system"
 	roleUser       = "user"
-	roleAssistant  = "assistant"
 	systemPrompt   = "You are a helpful assistant in a Telegram chat. Keep responses concise and friendly."
 )
 

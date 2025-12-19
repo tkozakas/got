@@ -61,6 +61,7 @@ const (
 	KeyStatsUser         Key = "stats_user"
 	KeyStatsWinnerExists Key = "stats_winner_exists"
 	KeyStatsWinnerNew    Key = "stats_winner_new"
+	KeyStatsAutoWinner   Key = "stats_auto_winner"
 	KeyStatsNoUsers      Key = "stats_no_users"
 	KeyStatsUsage        Key = "stats_usage"
 )
