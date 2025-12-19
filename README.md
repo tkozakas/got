@@ -4,9 +4,9 @@ Telegram bot written in Go.
 
 ## Setup
 
-Install [Task](https://taskfile.dev):
+Install tools with [mise](https://mise.jdx.dev):
 ```bash
-go install github.com/go-task/task/v3/cmd/task@latest
+mise install
 ```
 
 Create `.env`:
