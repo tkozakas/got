@@ -1,20 +1,14 @@
-version: "2"
-
 linters:
   enable:
     - decorder
-    - funcorder
 
-  settings:
-    decorder:
-      dec-order:
-        - const
-        - type
-        - var
-        - func
-      disable-dec-order-check: false
-      disable-dec-num-check: true
-      ignore-underscore-vars: true
-    funcorder:
-      constructor: true
-      struct-method: true
+linters-settings:
+  decorder:
+    dec-order:
+      - const
+      - type
+      - var
+      - func
+    disable-dec-order-check: false
+    disable-dec-num-check: true
+    ignore-underscore-vars: true
