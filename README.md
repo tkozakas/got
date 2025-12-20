@@ -73,7 +73,6 @@ task dev
 Commands can be customized via environment variables:
 
 ```bash
-CMD_ROULETTE=pidor    # Rename /roulette to /pidor
 CMD_GPT=ai            # Rename /gpt to /ai
 CMD_ADMIN=sudo        # Rename /admin to /sudo
 CMD_LANG=language     # Rename /lang to /language
