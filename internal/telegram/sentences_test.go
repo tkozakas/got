@@ -21,7 +21,6 @@ func TestNewSentenceProviderFromFile_ValidFile(t *testing.T) {
 		}
 	}`
 	tmpFile := createTempJSONFile(t, content)
-	defer os.Remove(tmpFile)
 
 	provider := NewSentenceProviderFromFile(tmpFile)
 
@@ -46,7 +45,6 @@ func TestNewSentenceProviderFromFile_MissingFile(t *testing.T) {
 
 func TestNewSentenceProviderFromFile_InvalidJSON(t *testing.T) {
 	tmpFile := createTempJSONFile(t, "not valid json")
-	defer os.Remove(tmpFile)
 
 	provider := NewSentenceProviderFromFile(tmpFile)
 
@@ -58,7 +56,6 @@ func TestNewSentenceProviderFromFile_InvalidJSON(t *testing.T) {
 func TestNewSentenceProviderFromFile_EmptyGroups(t *testing.T) {
 	content := `{"en": {"groups": []}}`
 	tmpFile := createTempJSONFile(t, content)
-	defer os.Remove(tmpFile)
 
 	provider := NewSentenceProviderFromFile(tmpFile)
 
@@ -76,7 +73,6 @@ func TestSentenceProvider_GetRandomGroup(t *testing.T) {
 		}
 	}`
 	tmpFile := createTempJSONFile(t, content)
-	defer os.Remove(tmpFile)
 
 	provider := NewSentenceProviderFromFile(tmpFile)
 	group := provider.GetRandomGroup("en")
@@ -101,7 +97,6 @@ func TestSentenceProvider_GetRandomGroup_FallbackToEnglish(t *testing.T) {
 		}
 	}`
 	tmpFile := createTempJSONFile(t, content)
-	defer os.Remove(tmpFile)
 
 	provider := NewSentenceProviderFromFile(tmpFile)
 	group := provider.GetRandomGroup("ja")

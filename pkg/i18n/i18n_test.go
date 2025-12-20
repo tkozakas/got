@@ -290,8 +290,8 @@ func setupTestTranslations(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		os.Remove(defaultFilePath)
-		os.Remove("translations")
+		_ = os.Remove(defaultFilePath)
+		_ = os.Remove("translations")
 	})
 }
 

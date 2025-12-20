@@ -47,7 +47,7 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("tts api error: %s", resp.Status)

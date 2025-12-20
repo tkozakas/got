@@ -84,7 +84,7 @@ func (c *Client) GetUpdates(offset int) ([]Update, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return c.parseUpdatesResponse(resp.Body)
 }
@@ -204,7 +204,7 @@ func (c *Client) GetStickerSet(name string) (*StickerSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -276,7 +276,7 @@ func (c *Client) sendMultipartFile(chatID int64, endpoint string, fieldName stri
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to send %s: %s", fieldName, resp.Status)
@@ -294,7 +294,7 @@ func (c *Client) postJSON(endpoint string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to send request: %s", resp.Status)

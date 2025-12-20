@@ -295,7 +295,7 @@ func TestClientSendVoice(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get voice file: %v", err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		if header.Filename != "audio.mp3" {
 			t.Errorf("filename = %q, want %q", header.Filename, "audio.mp3")
@@ -330,7 +330,7 @@ func TestClientSendDocument(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get document file: %v", err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		if header.Filename != "file.txt" {
 			t.Errorf("filename = %q, want %q", header.Filename, "file.txt")

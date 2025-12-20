@@ -115,7 +115,7 @@ func (c *Client) get(ctx context.Context, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	cmd := fmt.Sprintf(commandGet, len(key), key)
 	if _, err := conn.Write([]byte(cmd)); err != nil {
@@ -130,7 +130,7 @@ func (c *Client) set(ctx context.Context, key, value string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	cmd := fmt.Sprintf(commandSet, len(key), key, len(value), value)
 	if _, err := conn.Write([]byte(cmd)); err != nil {
@@ -149,7 +149,7 @@ func (c *Client) setWithTTL(ctx context.Context, key, value string, ttl time.Dur
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	seconds := int(ttl.Seconds())
 	secStr := fmt.Sprintf("%d", seconds)
