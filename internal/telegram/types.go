@@ -14,42 +14,6 @@ type Message struct {
 	Sticker        *Sticker `json:"sticker"`
 }
 
-func (m *Message) Command() string {
-	if len(m.Text) == 0 || m.Text[0] != '/' {
-		return ""
-	}
-
-	cmd := m.Text[1:]
-	for i, r := range cmd {
-		if r == ' ' {
-			cmd = cmd[:i]
-			break
-		}
-	}
-
-	return stripBotMention(cmd)
-}
-
-func stripBotMention(cmd string) string {
-	for i, r := range cmd {
-		if r == '@' {
-			return cmd[:i]
-		}
-	}
-	return cmd
-}
-
-func (m *Message) CommandArguments() string {
-	if len(m.Text) > 0 && m.Text[0] == '/' {
-		for i, r := range m.Text {
-			if r == ' ' {
-				return m.Text[i+1:]
-			}
-		}
-	}
-	return ""
-}
-
 type User struct {
 	ID        int64  `json:"id"`
 	IsBot     bool   `json:"is_bot"`
@@ -73,4 +37,40 @@ type APIResponse struct {
 	Ok          bool     `json:"ok"`
 	Result      []Update `json:"result,omitempty"`
 	Description string   `json:"description,omitempty"`
+}
+
+func (m *Message) Command() string {
+	if len(m.Text) == 0 || m.Text[0] != '/' {
+		return ""
+	}
+
+	cmd := m.Text[1:]
+	for i, r := range cmd {
+		if r == ' ' {
+			cmd = cmd[:i]
+			break
+		}
+	}
+
+	return stripBotMention(cmd)
+}
+
+func (m *Message) CommandArguments() string {
+	if len(m.Text) > 0 && m.Text[0] == '/' {
+		for i, r := range m.Text {
+			if r == ' ' {
+				return m.Text[i+1:]
+			}
+		}
+	}
+	return ""
+}
+
+func stripBotMention(cmd string) string {
+	for i, r := range cmd {
+		if r == '@' {
+			return cmd[:i]
+		}
+	}
+	return cmd
 }

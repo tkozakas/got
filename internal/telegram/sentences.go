@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultSentencesPath = "roulette_sentences.json"
+	defaultSentencesPath = "translations/roulette_sentences.json"
 	defaultLang          = "en"
 	minDelay             = 700 * time.Millisecond
 	maxDelay             = 1200 * time.Millisecond

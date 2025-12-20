@@ -131,6 +131,16 @@ func (c *Client) FetchModels(ctx context.Context) ([]string, error) {
 	return c.parseModelsResponse(data)
 }
 
+func (c *Client) SetModel(model string) error {
+	for _, m := range c.ListModels() {
+		if m == model {
+			c.model = model
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid model: %s", model)
+}
+
 func (c *Client) parseModelsResponse(data []byte) ([]string, error) {
 	var resp ModelsResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -179,16 +189,6 @@ func (c *Client) doGetRequest(ctx context.Context, url string) ([]byte, error) {
 	}
 
 	return body, nil
-}
-
-func (c *Client) SetModel(model string) error {
-	for _, m := range c.ListModels() {
-		if m == model {
-			c.model = model
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid model: %s", model)
 }
 
 func (c *Client) buildMessages(prompt string, history []Message) []Message {

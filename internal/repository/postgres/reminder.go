@@ -8,11 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrReminderNotFound = errors.New("reminder not found")
-
 type ReminderRepository struct {
 	pool *pgxpool.Pool
 }
+
+var ErrReminderNotFound = errors.New("reminder not found")
 
 func NewReminderRepository(pool *pgxpool.Pool) *ReminderRepository {
 	return &ReminderRepository{pool: pool}

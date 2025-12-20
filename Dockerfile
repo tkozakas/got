@@ -18,7 +18,6 @@ RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /app/bin/bot .
 COPY --from=builder /app/config.yaml .
-COPY --from=builder /app/translations.json .
-COPY --from=builder /app/roulette_sentences.json .
+COPY --from=builder /app/translations ./translations
 
 CMD ["./bot"]

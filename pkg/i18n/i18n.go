@@ -8,10 +8,8 @@ import (
 
 const (
 	defaultLang     = "en"
-	defaultFilePath = "translations.json"
+	defaultFilePath = "translations/template_message.json"
 )
-
-type Key string
 
 const (
 	KeyWelcome            Key = "welcome"
@@ -108,6 +106,8 @@ const (
 	KeyLangCurrent Key = "lang_current"
 	KeyLangList    Key = "lang_list"
 )
+
+type Key string
 
 type Translator struct {
 	lang         string

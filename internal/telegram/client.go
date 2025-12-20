@@ -31,6 +31,42 @@ type Client struct {
 	baseURL    string
 }
 
+type InputMediaPhoto struct {
+	Type    string `json:"type"`
+	Media   string `json:"media"`
+	Caption string `json:"caption,omitempty"`
+}
+
+type InputMediaAnimation struct {
+	Type    string `json:"type"`
+	Media   string `json:"media"`
+	Caption string `json:"caption,omitempty"`
+}
+
+type BotCommand struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+}
+
+type StickerSet struct {
+	Name     string           `json:"name"`
+	Title    string           `json:"title"`
+	Stickers []StickerSetItem `json:"stickers"`
+}
+
+type StickerSetItem struct {
+	FileID     string `json:"file_id"`
+	SetName    string `json:"set_name"`
+	IsVideo    bool   `json:"is_video"`
+	IsAnimated bool   `json:"is_animated"`
+}
+
+type StickerSetResponse struct {
+	Ok          bool       `json:"ok"`
+	Result      StickerSet `json:"result"`
+	Description string     `json:"description,omitempty"`
+}
+
 func NewClient(token string) *Client {
 	return &Client{
 		token: token,
@@ -68,24 +104,6 @@ func (c *Client) SendMessage(chatID int64, text string) error {
 	return c.postJSON(sendMessageCMD, data)
 }
 
-func (c *Client) parseUpdatesResponse(body io.Reader) ([]Update, error) {
-	data, err := io.ReadAll(body)
-	if err != nil {
-		return nil, err
-	}
-
-	var apiResp APIResponse
-	if err := json.Unmarshal(data, &apiResp); err != nil {
-		return nil, err
-	}
-
-	if !apiResp.Ok {
-		return nil, fmt.Errorf("telegram api error: %s", apiResp.Description)
-	}
-
-	return apiResp.Result, nil
-}
-
 func (c *Client) SendPhoto(chatID int64, photoURL string, caption string) error {
 	payload := map[string]any{
 		"chat_id": chatID,
@@ -113,18 +131,6 @@ func (c *Client) SendSticker(chatID int64, stickerID string) error {
 	}
 
 	return c.postJSON(sendStickerCMD, data)
-}
-
-type InputMediaPhoto struct {
-	Type    string `json:"type"`
-	Media   string `json:"media"`
-	Caption string `json:"caption,omitempty"`
-}
-
-type InputMediaAnimation struct {
-	Type    string `json:"type"`
-	Media   string `json:"media"`
-	Caption string `json:"caption,omitempty"`
 }
 
 func (c *Client) SendMediaGroup(chatID int64, media []InputMediaPhoto) error {
@@ -176,6 +182,63 @@ func (c *Client) SendVoice(chatID int64, audioData []byte, filename string) erro
 
 func (c *Client) SendDocument(chatID int64, fileData []byte, filename string, caption string) error {
 	return c.sendMultipartFile(chatID, sendDocumentCMD, "document", fileData, filename, caption)
+}
+
+func (c *Client) SetMyCommands(commands []BotCommand) error {
+	payload := map[string]any{
+		"commands": commands,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return c.postJSON(setMyCommandsCMD, data)
+}
+
+func (c *Client) GetStickerSet(name string) (*StickerSet, error) {
+	url := fmt.Sprintf("%s%s?name=%s", c.baseURL, getStickerSetCMD, name)
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp StickerSetResponse
+	if err := json.Unmarshal(data, &apiResp); err != nil {
+		return nil, err
+	}
+
+	if !apiResp.Ok {
+		return nil, fmt.Errorf("sticker set not found: %s", apiResp.Description)
+	}
+
+	return &apiResp.Result, nil
+}
+
+func (c *Client) parseUpdatesResponse(body io.Reader) ([]Update, error) {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp APIResponse
+	if err := json.Unmarshal(data, &apiResp); err != nil {
+		return nil, err
+	}
+
+	if !apiResp.Ok {
+		return nil, fmt.Errorf("telegram api error: %s", apiResp.Description)
+	}
+
+	return apiResp.Result, nil
 }
 
 func (c *Client) sendMultipartFile(chatID int64, endpoint string, fieldName string, fileData []byte, filename string, caption string) error {
@@ -238,67 +301,4 @@ func (c *Client) postJSON(endpoint string, data []byte) error {
 	}
 
 	return nil
-}
-
-type BotCommand struct {
-	Command     string `json:"command"`
-	Description string `json:"description"`
-}
-
-func (c *Client) SetMyCommands(commands []BotCommand) error {
-	payload := map[string]any{
-		"commands": commands,
-	}
-
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	return c.postJSON(setMyCommandsCMD, data)
-}
-
-type StickerSet struct {
-	Name     string           `json:"name"`
-	Title    string           `json:"title"`
-	Stickers []StickerSetItem `json:"stickers"`
-}
-
-type StickerSetItem struct {
-	FileID     string `json:"file_id"`
-	SetName    string `json:"set_name"`
-	IsVideo    bool   `json:"is_video"`
-	IsAnimated bool   `json:"is_animated"`
-}
-
-type StickerSetResponse struct {
-	Ok          bool       `json:"ok"`
-	Result      StickerSet `json:"result"`
-	Description string     `json:"description,omitempty"`
-}
-
-func (c *Client) GetStickerSet(name string) (*StickerSet, error) {
-	url := fmt.Sprintf("%s%s?name=%s", c.baseURL, getStickerSetCMD, name)
-
-	resp, err := c.httpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var apiResp StickerSetResponse
-	if err := json.Unmarshal(data, &apiResp); err != nil {
-		return nil, err
-	}
-
-	if !apiResp.Ok {
-		return nil, fmt.Errorf("sticker set not found: %s", apiResp.Description)
-	}
-
-	return &apiResp.Result, nil
 }

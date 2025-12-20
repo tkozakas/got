@@ -81,18 +81,6 @@ func (c *Client) SetModel(ctx context.Context, chatID int64, model string) error
 	return c.set(ctx, key, model)
 }
 
-func (c *Client) historyKey(chatID int64) string {
-	return fmt.Sprintf(historyKeyFmt, chatID)
-}
-
-func (c *Client) modelKey(chatID int64) string {
-	return fmt.Sprintf(modelKeyFmt, chatID)
-}
-
-func (c *Client) adminKey(userID int64) string {
-	return fmt.Sprintf(adminKeyFmt, userID)
-}
-
 func (c *Client) SetAdminSession(ctx context.Context, userID int64, active bool) error {
 	key := c.adminKey(userID)
 	if !active {
@@ -108,6 +96,18 @@ func (c *Client) GetAdminSession(ctx context.Context, userID int64) (bool, error
 		return false, err
 	}
 	return val == "1", nil
+}
+
+func (c *Client) historyKey(chatID int64) string {
+	return fmt.Sprintf(historyKeyFmt, chatID)
+}
+
+func (c *Client) modelKey(chatID int64) string {
+	return fmt.Sprintf(modelKeyFmt, chatID)
+}
+
+func (c *Client) adminKey(userID int64) string {
+	return fmt.Sprintf(adminKeyFmt, userID)
 }
 
 func (c *Client) get(ctx context.Context, key string) (string, error) {

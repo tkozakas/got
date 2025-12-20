@@ -9,6 +9,11 @@ import (
 
 type Middleware func(HandlerFunc) HandlerFunc
 
+type AutoRegisterMiddleware struct {
+	service *app.Service
+	next    Handler
+}
+
 func WithLogging(next HandlerFunc) HandlerFunc {
 	return func(ctx context.Context, update *Update) error {
 		if update.Message != nil {
@@ -37,11 +42,6 @@ func WithRecover(next HandlerFunc) HandlerFunc {
 		}()
 		return next(ctx, update)
 	}
-}
-
-type AutoRegisterMiddleware struct {
-	service *app.Service
-	next    Handler
 }
 
 func NewAutoRegisterMiddleware(service *app.Service, next Handler) *AutoRegisterMiddleware {

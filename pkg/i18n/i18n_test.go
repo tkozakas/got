@@ -281,12 +281,17 @@ func setupTestTranslations(t *testing.T) {
 
 	content := getTestTranslationsJSON()
 
+	if err := os.MkdirAll("translations", 0755); err != nil {
+		t.Fatalf("failed to create translations directory: %v", err)
+	}
+
 	if err := os.WriteFile(defaultFilePath, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to create test translations file: %v", err)
 	}
 
 	t.Cleanup(func() {
 		os.Remove(defaultFilePath)
+		os.Remove("translations")
 	})
 }
 

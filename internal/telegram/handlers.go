@@ -18,8 +18,6 @@ import (
 
 const defaultSubreddit = "programmerhumor"
 
-type SubCommand string
-
 const (
 	SubCommandList   SubCommand = "list"
 	SubCommandAdd    SubCommand = "add"
@@ -47,6 +45,8 @@ const (
 	ActionUploadVideoNote = "upload_video_note"
 )
 
+type SubCommand string
+
 type BotHandlers struct {
 	client      *Client
 	service     *app.Service
@@ -60,6 +60,8 @@ type BotHandlers struct {
 	defaultLang string
 	translators map[string]*i18n.Translator
 }
+
+var supportedLanguages = []string{"en", "ru", "lt", "ja"}
 
 func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator, tts *tts.Client, cmds *config.CommandsConfig, adminPass string) *BotHandlers {
 	translators := make(map[string]*i18n.Translator)
@@ -366,6 +368,107 @@ func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 	}
 }
 
+func (h *BotHandlers) HandleRoulette(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
+	userID := update.Message.From.ID
+	currentYear := time.Now().Year()
+
+	_ = h.service.RegisterUser(ctx, &model.User{
+		UserID:   userID,
+		Username: update.Message.From.UserName,
+	}, chatID)
+
+	_, _ = h.service.GetOrCreateStat(ctx, userID, chatID, currentYear)
+
+	args := strings.TrimSpace(update.Message.CommandArguments())
+	parts := strings.Fields(args)
+
+	if len(parts) == 0 {
+		return h.handleRouletteSpin(ctx, chatID, currentYear)
+	}
+
+	switch SubCommand(parts[0]) {
+	case SubCommandAll:
+		return h.handleRouletteAll(ctx, chatID)
+	case SubCommandStats:
+		year := currentYear
+		if len(parts) > 1 {
+			if y, err := strconv.Atoi(parts[1]); err == nil {
+				year = y
+			}
+		}
+		return h.handleRouletteYear(ctx, chatID, year)
+	default:
+		if year, err := strconv.Atoi(parts[0]); err == nil {
+			return h.handleRouletteYear(ctx, chatID, year)
+		}
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteUsage))
+	}
+}
+
+func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
+	text := update.Message.CommandArguments()
+
+	if text == "" {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsUsage))
+	}
+
+	if h.tts == nil {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
+	}
+
+	typing := h.startTyping(ctx, chatID, ActionRecordVoice)
+	defer typing.Stop()
+
+	audioData, err := h.tts.GenerateSpeech(ctx, text)
+	if err != nil {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
+	}
+
+	return h.client.SendVoice(chatID, audioData, "speech.mp3")
+}
+
+func (h *BotHandlers) HandleAdmin(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	t := h.getTranslator(ctx, chatID)
+	userID := update.Message.From.ID
+	isPrivate := update.Message.Chat.Type == "private"
+
+	if h.adminPass == "" {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminNoPass))
+	}
+
+	args := strings.TrimSpace(update.Message.CommandArguments())
+	parts := strings.SplitN(args, " ", 2)
+
+	if len(parts) == 0 || parts[0] == "" {
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
+	}
+
+	switch SubCommand(parts[0]) {
+	case SubCommandLogin:
+		return h.handleAdminLogin(ctx, chatID, userID, parts, isPrivate)
+	case SubCommandReset:
+		return h.handleAdminReset(ctx, chatID, userID)
+	default:
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
+	}
+}
+
+func (h *BotHandlers) HandleLang(ctx context.Context, update *Update) error {
+	chatID := update.Message.Chat.ID
+	args := strings.TrimSpace(update.Message.CommandArguments())
+
+	if args == "" {
+		return h.showCurrentLanguage(ctx, chatID)
+	}
+
+	return h.setLanguage(ctx, chatID, args)
+}
+
 func (h *BotHandlers) handleRemindList(ctx context.Context, chatID int64) error {
 	t := h.getTranslator(ctx, chatID)
 	reminders, err := h.service.GetPendingReminders(ctx, chatID)
@@ -422,45 +525,6 @@ func (h *BotHandlers) formatReminders(t *i18n.Translator, reminders []*model.Rem
 		sb.WriteString(fmt.Sprintf(t.Get(i18n.KeyRemindFormat), r.ReminderID, r.Message, r.RemindAt.Format(time.RFC822)))
 	}
 	return sb.String()
-}
-
-func (h *BotHandlers) HandleRoulette(ctx context.Context, update *Update) error {
-	chatID := update.Message.Chat.ID
-	t := h.getTranslator(ctx, chatID)
-	userID := update.Message.From.ID
-	currentYear := time.Now().Year()
-
-	_ = h.service.RegisterUser(ctx, &model.User{
-		UserID:   userID,
-		Username: update.Message.From.UserName,
-	}, chatID)
-
-	_, _ = h.service.GetOrCreateStat(ctx, userID, chatID, currentYear)
-
-	args := strings.TrimSpace(update.Message.CommandArguments())
-	parts := strings.Fields(args)
-
-	if len(parts) == 0 {
-		return h.handleRouletteSpin(ctx, chatID, currentYear)
-	}
-
-	switch SubCommand(parts[0]) {
-	case SubCommandAll:
-		return h.handleRouletteAll(ctx, chatID)
-	case SubCommandStats:
-		year := currentYear
-		if len(parts) > 1 {
-			if y, err := strconv.Atoi(parts[1]); err == nil {
-				year = y
-			}
-		}
-		return h.handleRouletteYear(ctx, chatID, year)
-	default:
-		if year, err := strconv.Atoi(parts[0]); err == nil {
-			return h.handleRouletteYear(ctx, chatID, year)
-		}
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteUsage))
-	}
 }
 
 func (h *BotHandlers) handleRouletteSpin(ctx context.Context, chatID int64, year int) error {
@@ -611,17 +675,6 @@ func (h *BotHandlers) handleGPTMemory(ctx context.Context, chatID int64) error {
 	return h.client.SendDocument(chatID, []byte(content), filename, caption)
 }
 
-func formatHistoryAsText(history []groq.Message) string {
-	var sb strings.Builder
-	for _, msg := range history {
-		sb.WriteString(msg.Role)
-		sb.WriteString(": ")
-		sb.WriteString(msg.Content)
-		sb.WriteString("\n")
-	}
-	return sb.String()
-}
-
 func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []string) error {
 	t := h.getTranslator(ctx, chatID)
 	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
@@ -635,15 +688,6 @@ func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []
 	imageURL := buildImageURL(prompt)
 
 	return h.client.SendPhoto(chatID, imageURL, prompt)
-}
-
-func buildImageURL(prompt string) string {
-	seed := time.Now().UnixNano() % 1000000
-	return fmt.Sprintf(
-		"https://image.pollinations.ai/prompt/%s?width=1024&height=1024&seed=%d&nologo=true&enhance=true",
-		url.QueryEscape(prompt),
-		seed,
-	)
 }
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username string, prompt string) error {
@@ -671,13 +715,6 @@ func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username 
 	}
 
 	return h.client.SendMessage(chatID, response)
-}
-
-func formatPromptWithUsername(username string, prompt string) string {
-	if strings.TrimSpace(username) == "" {
-		return prompt
-	}
-	return username + ": " + prompt
 }
 
 func (h *BotHandlers) formatUser(user *model.User) string {
@@ -803,30 +840,6 @@ func (h *BotHandlers) aggregateStats(stats []*model.Stat) []*model.Stat {
 	return result
 }
 
-func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
-	chatID := update.Message.Chat.ID
-	t := h.getTranslator(ctx, chatID)
-	text := update.Message.CommandArguments()
-
-	if text == "" {
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsUsage))
-	}
-
-	if h.tts == nil {
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
-	}
-
-	typing := h.startTyping(ctx, chatID, ActionRecordVoice)
-	defer typing.Stop()
-
-	audioData, err := h.tts.GenerateSpeech(ctx, text)
-	if err != nil {
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
-	}
-
-	return h.client.SendVoice(chatID, audioData, "speech.mp3")
-}
-
 func (h *BotHandlers) sendMemes(chatID int64, memes []model.RedditMeme) error {
 	var photos []model.RedditMeme
 	var gifs []model.RedditMeme
@@ -864,41 +877,6 @@ func (h *BotHandlers) sendMemes(chatID int64, memes []model.RedditMeme) error {
 	}
 
 	return nil
-}
-
-func isAnimatedURL(url string) bool {
-	lowerURL := strings.ToLower(url)
-	return strings.HasSuffix(lowerURL, ".gif") ||
-		strings.Contains(lowerURL, ".gif?") ||
-		strings.HasSuffix(lowerURL, ".mp4") ||
-		strings.Contains(lowerURL, ".mp4?")
-}
-
-func (h *BotHandlers) HandleAdmin(ctx context.Context, update *Update) error {
-	chatID := update.Message.Chat.ID
-	t := h.getTranslator(ctx, chatID)
-	userID := update.Message.From.ID
-	isPrivate := update.Message.Chat.Type == "private"
-
-	if h.adminPass == "" {
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminNoPass))
-	}
-
-	args := strings.TrimSpace(update.Message.CommandArguments())
-	parts := strings.SplitN(args, " ", 2)
-
-	if len(parts) == 0 || parts[0] == "" {
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
-	}
-
-	switch SubCommand(parts[0]) {
-	case SubCommandLogin:
-		return h.handleAdminLogin(ctx, chatID, userID, parts, isPrivate)
-	case SubCommandReset:
-		return h.handleAdminReset(ctx, chatID, userID)
-	default:
-		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
-	}
 }
 
 func (h *BotHandlers) handleAdminLogin(ctx context.Context, chatID, userID int64, parts []string, isPrivate bool) error {
@@ -945,19 +923,6 @@ func (h *BotHandlers) isAdmin(ctx context.Context, userID int64) (bool, error) {
 	return h.cache.GetAdminSession(ctx, userID)
 }
 
-var supportedLanguages = []string{"en", "ru", "lt", "ja"}
-
-func (h *BotHandlers) HandleLang(ctx context.Context, update *Update) error {
-	chatID := update.Message.Chat.ID
-	args := strings.TrimSpace(update.Message.CommandArguments())
-
-	if args == "" {
-		return h.showCurrentLanguage(ctx, chatID)
-	}
-
-	return h.setLanguage(ctx, chatID, args)
-}
-
 func (h *BotHandlers) showCurrentLanguage(ctx context.Context, chatID int64) error {
 	t := h.getTranslator(ctx, chatID)
 	lang, _ := h.service.GetChatLanguage(ctx, chatID)
@@ -988,15 +953,6 @@ func (h *BotHandlers) setLanguage(ctx context.Context, chatID int64, lang string
 	return h.client.SendMessage(chatID, fmt.Sprintf(newT.Get(i18n.KeyLangSet), lang))
 }
 
-func isValidLanguage(lang string) bool {
-	for _, l := range supportedLanguages {
-		if l == lang {
-			return true
-		}
-	}
-	return false
-}
-
 func (h *BotHandlers) getTranslator(ctx context.Context, chatID int64) *i18n.Translator {
 	lang, _ := h.service.GetChatLanguage(ctx, chatID)
 	if lang == "" {
@@ -1006,4 +962,48 @@ func (h *BotHandlers) getTranslator(ctx context.Context, chatID int64) *i18n.Tra
 		return t
 	}
 	return h.t
+}
+
+func formatHistoryAsText(history []groq.Message) string {
+	var sb strings.Builder
+	for _, msg := range history {
+		sb.WriteString(msg.Role)
+		sb.WriteString(": ")
+		sb.WriteString(msg.Content)
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+func buildImageURL(prompt string) string {
+	seed := time.Now().UnixNano() % 1000000
+	return fmt.Sprintf(
+		"https://image.pollinations.ai/prompt/%s?width=1024&height=1024&seed=%d&nologo=true&enhance=true",
+		url.QueryEscape(prompt),
+		seed,
+	)
+}
+
+func formatPromptWithUsername(username string, prompt string) string {
+	if strings.TrimSpace(username) == "" {
+		return prompt
+	}
+	return username + ": " + prompt
+}
+
+func isAnimatedURL(url string) bool {
+	lowerURL := strings.ToLower(url)
+	return strings.HasSuffix(lowerURL, ".gif") ||
+		strings.Contains(lowerURL, ".gif?") ||
+		strings.HasSuffix(lowerURL, ".mp4") ||
+		strings.Contains(lowerURL, ".mp4?")
+}
+
+func isValidLanguage(lang string) bool {
+	for _, l := range supportedLanguages {
+		if l == lang {
+			return true
+		}
+	}
+	return false
 }

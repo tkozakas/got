@@ -13,6 +13,54 @@ type mockChatRepo struct {
 	getFunc  func(ctx context.Context, chatID int64) (*model.Chat, error)
 }
 
+type mockUserRepo struct {
+	saveFunc      func(ctx context.Context, user *model.User) error
+	addToChatFunc func(ctx context.Context, userID, chatID int64) error
+	getFunc       func(ctx context.Context, userID int64) (*model.User, error)
+}
+
+type mockReminderRepo struct {
+	saveFunc       func(ctx context.Context, r *model.Reminder) error
+	listByChatFunc func(ctx context.Context, chatID int64) ([]*model.Reminder, error)
+	deleteFunc     func(ctx context.Context, reminderID int64, chatID int64) error
+}
+
+type mockFactRepo struct {
+	saveFunc            func(ctx context.Context, f *model.Fact) error
+	getRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Fact, error)
+	listByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Fact, error)
+}
+
+type mockStickerRepo struct {
+	saveFunc            func(ctx context.Context, s *model.Sticker) error
+	getRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Sticker, error)
+	listByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Sticker, error)
+	deleteFunc          func(ctx context.Context, fileID string, chatID int64) error
+	deleteBySetNameFunc func(ctx context.Context, setName string, chatID int64) (int, error)
+}
+
+type mockSubredditRepo struct {
+	saveFunc            func(ctx context.Context, s *model.Subreddit) error
+	getRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Subreddit, error)
+	listByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Subreddit, error)
+	deleteFunc          func(ctx context.Context, name string, chatID int64) error
+}
+
+type mockStatRepo struct {
+	saveFunc               func(ctx context.Context, s *model.Stat) error
+	findByUserChatYearFunc func(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error)
+	findWinnerByChatFunc   func(ctx context.Context, chatID int64, year int) (*model.Stat, error)
+	listByChatAndYearFunc  func(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
+	listByChatFunc         func(ctx context.Context, chatID int64) ([]*model.Stat, error)
+	resetWinnerByChatFunc  func(ctx context.Context, chatID int64, year int) error
+	updateFunc             func(ctx context.Context, statID int64, score int64, isWinner bool) error
+}
+
+type mockHandler struct {
+	called bool
+	err    error
+}
+
 func (m *mockChatRepo) Save(ctx context.Context, chat *model.Chat) error {
 	if m.saveFunc != nil {
 		return m.saveFunc(ctx, chat)
@@ -37,12 +85,6 @@ func (m *mockChatRepo) SetLanguage(ctx context.Context, chatID int64, language s
 
 func (m *mockChatRepo) GetLanguage(ctx context.Context, chatID int64) (string, error) {
 	return "", nil
-}
-
-type mockUserRepo struct {
-	saveFunc      func(ctx context.Context, user *model.User) error
-	addToChatFunc func(ctx context.Context, userID, chatID int64) error
-	getFunc       func(ctx context.Context, userID int64) (*model.User, error)
 }
 
 func (m *mockUserRepo) Save(ctx context.Context, user *model.User) error {
@@ -70,12 +112,6 @@ func (m *mockUserRepo) GetRandomByChat(ctx context.Context, chatID int64) (*mode
 	return nil, nil
 }
 
-type mockReminderRepo struct {
-	saveFunc       func(ctx context.Context, r *model.Reminder) error
-	listByChatFunc func(ctx context.Context, chatID int64) ([]*model.Reminder, error)
-	deleteFunc     func(ctx context.Context, reminderID int64, chatID int64) error
-}
-
 func (m *mockReminderRepo) Save(ctx context.Context, r *model.Reminder) error {
 	if m.saveFunc != nil {
 		return m.saveFunc(ctx, r)
@@ -99,12 +135,6 @@ func (m *mockReminderRepo) Delete(ctx context.Context, reminderID int64, chatID 
 	return nil
 }
 
-type mockFactRepo struct {
-	saveFunc            func(ctx context.Context, f *model.Fact) error
-	getRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Fact, error)
-	listByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Fact, error)
-}
-
 func (m *mockFactRepo) Save(ctx context.Context, f *model.Fact) error {
 	if m.saveFunc != nil {
 		return m.saveFunc(ctx, f)
@@ -122,14 +152,6 @@ func (m *mockFactRepo) ListByChat(ctx context.Context, chatID int64) ([]*model.F
 		return m.listByChatFunc(ctx, chatID)
 	}
 	return nil, nil
-}
-
-type mockStickerRepo struct {
-	saveFunc            func(ctx context.Context, s *model.Sticker) error
-	getRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Sticker, error)
-	listByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Sticker, error)
-	deleteFunc          func(ctx context.Context, fileID string, chatID int64) error
-	deleteBySetNameFunc func(ctx context.Context, setName string, chatID int64) (int, error)
 }
 
 func (m *mockStickerRepo) Save(ctx context.Context, s *model.Sticker) error {
@@ -164,13 +186,6 @@ func (m *mockStickerRepo) DeleteBySetName(ctx context.Context, setName string, c
 	return 0, nil
 }
 
-type mockSubredditRepo struct {
-	saveFunc            func(ctx context.Context, s *model.Subreddit) error
-	getRandomByChatFunc func(ctx context.Context, chatID int64) (*model.Subreddit, error)
-	listByChatFunc      func(ctx context.Context, chatID int64) ([]*model.Subreddit, error)
-	deleteFunc          func(ctx context.Context, name string, chatID int64) error
-}
-
 func (m *mockSubredditRepo) Save(ctx context.Context, s *model.Subreddit) error {
 	if m.saveFunc != nil {
 		return m.saveFunc(ctx, s)
@@ -194,16 +209,6 @@ func (m *mockSubredditRepo) Delete(ctx context.Context, name string, chatID int6
 		return m.deleteFunc(ctx, name, chatID)
 	}
 	return nil
-}
-
-type mockStatRepo struct {
-	saveFunc               func(ctx context.Context, s *model.Stat) error
-	findByUserChatYearFunc func(ctx context.Context, userID, chatID int64, year int) (*model.Stat, error)
-	findWinnerByChatFunc   func(ctx context.Context, chatID int64, year int) (*model.Stat, error)
-	listByChatAndYearFunc  func(ctx context.Context, chatID int64, year int) ([]*model.Stat, error)
-	listByChatFunc         func(ctx context.Context, chatID int64) ([]*model.Stat, error)
-	resetWinnerByChatFunc  func(ctx context.Context, chatID int64, year int) error
-	updateFunc             func(ctx context.Context, statID int64, score int64, isWinner bool) error
 }
 
 func (m *mockStatRepo) Save(ctx context.Context, s *model.Stat) error {
@@ -248,11 +253,6 @@ func (m *mockStatRepo) Update(ctx context.Context, statID int64, score int64, is
 		return m.updateFunc(ctx, statID, score, isWinner)
 	}
 	return nil
-}
-
-type mockHandler struct {
-	called bool
-	err    error
 }
 
 func (m *mockHandler) Handle(ctx context.Context, update *Update) error {
