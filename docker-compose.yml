@@ -19,6 +19,8 @@ services:
     <<: *bot-common
     image: ghcr.io/tkozakas/got:latest
     profiles: ["prod"]
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   bot-dev:
     <<: *bot-common
