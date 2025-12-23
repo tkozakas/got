@@ -3,6 +3,12 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	"got/internal/app"
 	"got/internal/app/model"
 	"got/internal/groq"
@@ -10,10 +16,6 @@ import (
 	"got/internal/tts"
 	"got/pkg/config"
 	"got/pkg/i18n"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const defaultSubreddit = "programmerhumor"
@@ -528,6 +530,7 @@ func (h *BotHandlers) handleRouletteSpin(ctx context.Context, chatID int64, year
 
 	winner, err := h.service.GetTodayWinner(ctx, chatID, year)
 	if err != nil {
+		slog.Error("roulette: failed to get today winner", "chatID", chatID, "error", err)
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoStats))
 	}
 
@@ -537,7 +540,12 @@ func (h *BotHandlers) handleRouletteSpin(ctx context.Context, chatID int64, year
 	}
 
 	winner, err = h.service.SelectRandomWinner(ctx, chatID, year)
-	if err != nil || winner == nil {
+	if err != nil {
+		slog.Error("roulette: failed to select random winner", "chatID", chatID, "error", err)
+		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoUsers))
+	}
+	if winner == nil {
+		slog.Warn("roulette: no users found in chat", "chatID", chatID)
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyRouletteNoUsers))
 	}
 
