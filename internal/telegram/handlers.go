@@ -19,33 +19,33 @@ import (
 const defaultSubreddit = "programmerhumor"
 
 const (
-	SubCommandList   SubCommand = "list"
-	SubCommandAdd    SubCommand = "add"
-	SubCommandRemove SubCommand = "remove"
-	SubCommandDelete SubCommand = "delete"
-	SubCommandModel  SubCommand = "model"
-	SubCommandClear  SubCommand = "clear"
-	SubCommandForget SubCommand = "forget"
-	SubCommandAll    SubCommand = "all"
-	SubCommandStats  SubCommand = "stats"
-	SubCommandMemory SubCommand = "memory"
-	SubCommandImage  SubCommand = "image"
-	SubCommandLogin  SubCommand = "login"
-	SubCommandReset  SubCommand = "reset"
+	subCommandList   subCommand = "list"
+	subCommandAdd    subCommand = "add"
+	subCommandRemove subCommand = "remove"
+	subCommandDelete subCommand = "delete"
+	subCommandModel  subCommand = "model"
+	subCommandClear  subCommand = "clear"
+	subCommandForget subCommand = "forget"
+	subCommandAll    subCommand = "all"
+	subCommandStats  subCommand = "stats"
+	subCommandMemory subCommand = "memory"
+	subCommandImage  subCommand = "image"
+	subCommandLogin  subCommand = "login"
+	subCommandReset  subCommand = "reset"
 )
 
 const (
-	ActionTyping          = "typing"
-	ActionUploadPhoto     = "upload_photo"
-	ActionRecordVoice     = "record_voice"
-	ActionUploadVoice     = "upload_voice"
-	ActionUploadDocument  = "upload_document"
-	ActionUploadVideo     = "upload_video"
-	ActionRecordVideoNote = "record_video_note"
-	ActionUploadVideoNote = "upload_video_note"
+	actionTyping          = "typing"
+	actionUploadPhoto     = "upload_photo"
+	actionRecordVoice     = "record_voice"
+	actionUploadVoice     = "upload_voice"
+	actionUploadDocument  = "upload_document"
+	actionUploadVideo     = "upload_video"
+	actionRecordVideoNote = "record_video_note"
+	actionUploadVideoNote = "upload_video_note"
 )
 
-type SubCommand string
+type subCommand string
 
 type BotHandlers struct {
 	client      *Client
@@ -84,24 +84,23 @@ func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cach
 	}
 }
 
+func (h *BotHandlers) registerChatUser(ctx context.Context, msg *Message) {
+	if msg.Chat == nil || msg.From == nil {
+		return
+	}
+	_ = h.service.RegisterChat(ctx, &model.Chat{
+		ChatID:   msg.Chat.ID,
+		ChatName: msg.Chat.Title,
+	})
+	_ = h.service.RegisterUser(ctx, &model.User{
+		UserID:   msg.From.ID,
+		Username: msg.From.UserName,
+	}, msg.Chat.ID)
+}
+
 func (h *BotHandlers) HandleStart(ctx context.Context, update *Update) error {
 	chatID := update.Message.Chat.ID
 	t := h.getTranslator(ctx, chatID)
-
-	if update.Message.Chat != nil {
-		_ = h.service.RegisterChat(ctx, &model.Chat{
-			ChatID:   chatID,
-			ChatName: update.Message.Chat.Title,
-		})
-	}
-
-	if update.Message.From != nil {
-		_ = h.service.RegisterUser(ctx, &model.User{
-			UserID:   update.Message.From.ID,
-			Username: update.Message.From.UserName,
-		}, chatID)
-	}
-
 	return h.client.SendMessage(chatID, t.Get(i18n.KeyWelcome))
 }
 
@@ -149,7 +148,7 @@ func (h *BotHandlers) HandleFact(ctx context.Context, update *Update) error {
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	parts := strings.SplitN(args, " ", 2)
 
-	if len(parts) > 0 && SubCommand(parts[0]) == SubCommandAdd {
+	if len(parts) > 0 && subCommand(parts[0]) == subCommandAdd {
 		if len(parts) < 2 {
 			return h.client.SendMessage(chatID, t.Get(i18n.KeyFactUsage))
 		}
@@ -175,13 +174,13 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 	args := strings.TrimSpace(update.Message.CommandArguments())
 	parts := strings.Fields(args)
 
-	subCmd := SubCommand("")
+	subCmd := subCommand("")
 	if len(parts) > 0 {
-		subCmd = SubCommand(parts[0])
+		subCmd = subCommand(parts[0])
 	}
 
 	switch subCmd {
-	case SubCommandAdd:
+	case subCommandAdd:
 		if len(parts) > 1 {
 			return h.addStickerSet(ctx, chatID, parts[1])
 		}
@@ -194,7 +193,7 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 		}
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerAdded))
 
-	case SubCommandRemove:
+	case subCommandRemove:
 		if len(parts) > 1 {
 			return h.removeStickerSet(ctx, chatID, parts[1])
 		}
@@ -207,7 +206,7 @@ func (h *BotHandlers) HandleSticker(ctx context.Context, update *Update) error {
 		}
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerRemoved))
 
-	case SubCommandList:
+	case subCommandList:
 		stickers, err := h.service.ListStickers(ctx, chatID)
 		if err != nil {
 			return h.client.SendMessage(chatID, t.Get(i18n.KeyStickerError))
@@ -233,8 +232,8 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 	parts := strings.Fields(args)
 
 	if len(parts) > 0 {
-		switch SubCommand(parts[0]) {
-		case SubCommandAdd:
+		switch subCommand(parts[0]) {
+		case subCommandAdd:
 			if len(parts) < 2 {
 				return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeUsage))
 			}
@@ -243,7 +242,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 			}
 			return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyMemeAdded), parts[1]))
 
-		case SubCommandRemove:
+		case subCommandRemove:
 			if len(parts) < 2 {
 				return h.client.SendMessage(chatID, t.Get(i18n.KeyMemeUsage))
 			}
@@ -252,7 +251,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 			}
 			return h.client.SendMessage(chatID, fmt.Sprintf(t.Get(i18n.KeyMemeRemoved), parts[1]))
 
-		case SubCommandList:
+		case subCommandList:
 			subs, err := h.service.ListSubreddits(ctx, chatID)
 			if err != nil {
 				return h.client.SendMessage(chatID, t.Get(i18n.KeySubredditError))
@@ -301,7 +300,7 @@ func (h *BotHandlers) HandleMeme(ctx context.Context, update *Update) error {
 		}
 	}
 
-	_ = h.client.SendChatAction(chatID, ActionUploadPhoto)
+	_ = h.client.SendChatAction(chatID, actionUploadPhoto)
 
 	memes, err := h.fetchMemes(ctx, subName, count)
 	if err != nil || len(memes) == 0 {
@@ -325,19 +324,19 @@ func (h *BotHandlers) HandleGPT(ctx context.Context, update *Update) error {
 	}
 
 	parts := strings.SplitN(args, " ", 2)
-	subCmd := SubCommand(parts[0])
+	subCmd := subCommand(parts[0])
 
 	switch subCmd {
-	case SubCommandModel:
+	case subCommandModel:
 		if len(parts) > 1 && strings.TrimSpace(parts[1]) != "" {
 			return h.handleGPTSetModel(ctx, chatID, strings.TrimSpace(parts[1]))
 		}
 		return h.handleGPTModels(ctx, chatID)
-	case SubCommandClear, SubCommandForget:
+	case subCommandClear, subCommandForget:
 		return h.handleGPTClear(ctx, chatID)
-	case SubCommandMemory:
+	case subCommandMemory:
 		return h.handleGPTMemory(ctx, chatID)
-	case SubCommandImage:
+	case subCommandImage:
 		return h.handleGPTImage(ctx, chatID, parts)
 	default:
 		username := ""
@@ -358,10 +357,10 @@ func (h *BotHandlers) HandleRemind(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyRemindUsage))
 	}
 
-	switch SubCommand(parts[0]) {
-	case SubCommandList:
+	switch subCommand(parts[0]) {
+	case subCommandList:
 		return h.handleRemindList(ctx, chatID)
-	case SubCommandDelete:
+	case subCommandDelete:
 		return h.handleRemindDelete(ctx, chatID, parts)
 	default:
 		return h.handleRemindAdd(ctx, chatID, update.Message.From.ID, parts)
@@ -374,11 +373,7 @@ func (h *BotHandlers) HandleRoulette(ctx context.Context, update *Update) error 
 	userID := update.Message.From.ID
 	currentYear := time.Now().Year()
 
-	_ = h.service.RegisterUser(ctx, &model.User{
-		UserID:   userID,
-		Username: update.Message.From.UserName,
-	}, chatID)
-
+	h.registerChatUser(ctx, update.Message)
 	_, _ = h.service.GetOrCreateStat(ctx, userID, chatID, currentYear)
 
 	args := strings.TrimSpace(update.Message.CommandArguments())
@@ -388,10 +383,10 @@ func (h *BotHandlers) HandleRoulette(ctx context.Context, update *Update) error 
 		return h.handleRouletteSpin(ctx, chatID, currentYear)
 	}
 
-	switch SubCommand(parts[0]) {
-	case SubCommandAll:
+	switch subCommand(parts[0]) {
+	case subCommandAll:
 		return h.handleRouletteAll(ctx, chatID)
-	case SubCommandStats:
+	case subCommandStats:
 		year := currentYear
 		if len(parts) > 1 {
 			if y, err := strconv.Atoi(parts[1]); err == nil {
@@ -420,7 +415,7 @@ func (h *BotHandlers) HandleTTS(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyTtsError))
 	}
 
-	typing := h.startTyping(ctx, chatID, ActionRecordVoice)
+	typing := h.startTyping(ctx, chatID, actionRecordVoice)
 	defer typing.Stop()
 
 	audioData, err := h.tts.GenerateSpeech(ctx, text)
@@ -448,10 +443,10 @@ func (h *BotHandlers) HandleAdmin(ctx context.Context, update *Update) error {
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
 	}
 
-	switch SubCommand(parts[0]) {
-	case SubCommandLogin:
+	switch subCommand(parts[0]) {
+	case subCommandLogin:
 		return h.handleAdminLogin(ctx, chatID, userID, parts, isPrivate)
-	case SubCommandReset:
+	case subCommandReset:
 		return h.handleAdminReset(ctx, chatID, userID)
 	default:
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyAdminUsage))
@@ -666,7 +661,7 @@ func (h *BotHandlers) handleGPTMemory(ctx context.Context, chatID int64) error {
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptMemoryEmpty))
 	}
 
-	_ = h.client.SendChatAction(chatID, ActionUploadDocument)
+	_ = h.client.SendChatAction(chatID, actionUploadDocument)
 
 	content := formatHistoryAsText(history)
 	filename := fmt.Sprintf("chat_history_%d.txt", chatID)
@@ -681,7 +676,7 @@ func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []
 		return h.client.SendMessage(chatID, t.Get(i18n.KeyGptImageUsage))
 	}
 
-	typing := h.startTyping(ctx, chatID, ActionUploadPhoto)
+	typing := h.startTyping(ctx, chatID, actionUploadPhoto)
 	defer typing.Stop()
 
 	prompt := strings.TrimSpace(parts[1])
@@ -692,7 +687,7 @@ func (h *BotHandlers) handleGPTImage(ctx context.Context, chatID int64, parts []
 
 func (h *BotHandlers) handleGPTChat(ctx context.Context, chatID int64, username string, prompt string) error {
 	t := h.getTranslator(ctx, chatID)
-	typing := h.startTyping(ctx, chatID, ActionTyping)
+	typing := h.startTyping(ctx, chatID, actionTyping)
 	defer typing.Stop()
 
 	formattedPrompt := formatPromptWithUsername(username, prompt)

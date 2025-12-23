@@ -22,7 +22,7 @@ func TestTypingIndicatorStartSendsImmediately(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	indicator.Start(ctx, ActionTyping)
+	indicator.Start(ctx, actionTyping)
 	time.Sleep(50 * time.Millisecond)
 	indicator.Stop()
 
@@ -43,7 +43,7 @@ func TestTypingIndicatorStopsOnStop(t *testing.T) {
 	indicator := NewTypingIndicator(client, testChatID)
 
 	ctx := context.Background()
-	indicator.Start(ctx, ActionTyping)
+	indicator.Start(ctx, actionTyping)
 	time.Sleep(50 * time.Millisecond)
 	indicator.Stop()
 
@@ -67,7 +67,7 @@ func TestTypingIndicatorStopsOnContextCancel(t *testing.T) {
 	indicator := NewTypingIndicator(client, testChatID)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	indicator.Start(ctx, ActionTyping)
+	indicator.Start(ctx, actionTyping)
 	time.Sleep(50 * time.Millisecond)
 	cancel()
 

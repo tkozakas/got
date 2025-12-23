@@ -1566,3 +1566,145 @@ func TestHandleGPTModels(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisterChatUser(t *testing.T) {
+	tests := []struct {
+		name          string
+		msg           *Message
+		wantChatSaved bool
+		wantUserSaved bool
+	}{
+		{
+			name:          "nilChat",
+			msg:           &Message{From: &User{ID: 1}},
+			wantChatSaved: false,
+			wantUserSaved: false,
+		},
+		{
+			name:          "nilFrom",
+			msg:           &Message{Chat: &Chat{ID: 1}},
+			wantChatSaved: false,
+			wantUserSaved: false,
+		},
+		{
+			name:          "bothNil",
+			msg:           &Message{},
+			wantChatSaved: false,
+			wantUserSaved: false,
+		},
+		{
+			name: "validChatAndUser",
+			msg: &Message{
+				Chat: &Chat{ID: 123, Title: "Test Chat"},
+				From: &User{ID: 456, UserName: "testuser"},
+			},
+			wantChatSaved: true,
+			wantUserSaved: true,
+		},
+		{
+			name: "userWithoutUsername",
+			msg: &Message{
+				Chat: &Chat{ID: 123, Title: "Test Chat"},
+				From: &User{ID: 456, FirstName: "John"},
+			},
+			wantChatSaved: true,
+			wantUserSaved: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chatSaved := false
+			userSaved := false
+
+			mockChat := &mockChatRepo{
+				saveFunc: func(ctx context.Context, chat *model.Chat) error {
+					chatSaved = true
+					return nil
+				},
+			}
+			mockUser := &mockUserRepo{
+				saveFunc: func(ctx context.Context, user *model.User) error {
+					userSaved = true
+					return nil
+				},
+			}
+
+			svc := app.NewService(
+				mockChat,
+				mockUser,
+				&mockReminderRepo{},
+				&mockFactRepo{},
+				&mockStickerRepo{},
+				&mockSubredditRepo{},
+				&mockStatRepo{},
+			)
+
+			server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			client := newTestClient(server.URL)
+			handlers := newTestBotHandlers(client, svc)
+
+			handlers.registerChatUser(context.Background(), tt.msg)
+
+			if chatSaved != tt.wantChatSaved {
+				t.Errorf("chat saved = %v, want %v", chatSaved, tt.wantChatSaved)
+			}
+			if userSaved != tt.wantUserSaved {
+				t.Errorf("user saved = %v, want %v", userSaved, tt.wantUserSaved)
+			}
+		})
+	}
+}
+
+func TestRouletteRegistersUser(t *testing.T) {
+	chatSaved := false
+	userSaved := false
+
+	mockChat := &mockChatRepo{
+		saveFunc: func(ctx context.Context, chat *model.Chat) error {
+			chatSaved = true
+			return nil
+		},
+	}
+	mockUser := &mockUserRepo{
+		saveFunc: func(ctx context.Context, user *model.User) error {
+			userSaved = true
+			return nil
+		},
+	}
+
+	svc := app.NewService(
+		mockChat,
+		mockUser,
+		&mockReminderRepo{},
+		&mockFactRepo{},
+		&mockStickerRepo{},
+		&mockSubredditRepo{},
+		&mockStatRepo{},
+	)
+
+	server := newTestServerWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	client := newTestClient(server.URL)
+	handlers := newTestBotHandlers(client, svc)
+
+	update := &Update{
+		Message: &Message{
+			Text: "/roulette stats",
+			Chat: &Chat{ID: 123, Title: "Test Chat"},
+			From: &User{ID: 456, UserName: "testuser"},
+		},
+	}
+
+	_ = handlers.HandleRoulette(context.Background(), update)
+
+	if !chatSaved {
+		t.Error("expected chat to be saved on /roulette")
+	}
+	if !userSaved {
+		t.Error("expected user to be saved on /roulette")
+	}
+}
