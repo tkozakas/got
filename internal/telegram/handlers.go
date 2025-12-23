@@ -861,20 +861,20 @@ func (h *BotHandlers) sendMemes(chatID int64, memes []model.RedditMeme) error {
 			media[i] = InputMediaPhoto{
 				Type:    "photo",
 				Media:   meme.URL,
-				Caption: meme.Title,
+				Caption: formatMemeCaption(meme),
 			}
 		}
 		if err := h.client.SendMediaGroup(chatID, media); err != nil {
 			return err
 		}
 	} else if len(photos) == 1 {
-		if err := h.client.SendPhoto(chatID, photos[0].URL, photos[0].Title); err != nil {
+		if err := h.client.SendPhoto(chatID, photos[0].URL, formatMemeCaption(photos[0])); err != nil {
 			return err
 		}
 	}
 
 	for _, gif := range gifs {
-		if err := h.client.SendAnimation(chatID, gif.URL, gif.Title); err != nil {
+		if err := h.client.SendAnimation(chatID, gif.URL, formatMemeCaption(gif)); err != nil {
 			return err
 		}
 	}
@@ -1009,4 +1009,11 @@ func isValidLanguage(lang string) bool {
 		}
 	}
 	return false
+}
+
+func formatMemeCaption(meme model.RedditMeme) string {
+	if meme.Subreddit == "" {
+		return meme.Title
+	}
+	return fmt.Sprintf("%s\n\nr/%s", meme.Title, meme.Subreddit)
 }
