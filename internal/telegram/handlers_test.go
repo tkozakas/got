@@ -26,6 +26,7 @@ func newTestTranslator() *i18n.Translator {
 		"cmd_fact":               "Get a random fact",
 		"cmd_roulette":           "Daily winner roulette",
 		"cmd_tts":                "Convert text to speech",
+		"cmd_lang":               "Change chat language",
 		"welcome":                "Welcome! I am ready.",
 		"gpt_usage":              "Usage: /gpt <prompt>",
 		"gpt_no_key":             "GPT is not configured.",
@@ -94,6 +95,7 @@ func newTestCommandsConfig() *config.CommandsConfig {
 		Fact:     "fact",
 		Roulette: "roulette",
 		Tts:      "tts",
+		Lang:     "lang",
 	}
 }
 
@@ -185,6 +187,7 @@ func TestHandleHelpAllCommandsListed(t *testing.T) {
 		"/fact",
 		"/roulette",
 		"/tts",
+		"/lang",
 	}
 
 	for _, cmd := range expectedCommands {
@@ -240,6 +243,7 @@ func TestHandleHelpCommandDescriptions(t *testing.T) {
 		"Get a random fact",
 		"Daily winner roulette",
 		"Convert text to speech",
+		"Change chat language",
 	}
 
 	for _, desc := range expectedDescriptions {

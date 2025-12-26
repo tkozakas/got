@@ -125,6 +125,7 @@ func (h *BotHandlers) HandleHelp(ctx context.Context, update *Update) error {
 		{h.cmds.Tts, i18n.KeyCmdTts, nil, false},
 		{h.cmds.Roulette, i18n.KeyCmdRoulette, []string{"stats", "all"}, false},
 		{h.cmds.Remind, i18n.KeyCmdRemind, []string{"list", "delete"}, false},
+		{h.cmds.Lang, i18n.KeyCmdLang, nil, false},
 	}
 
 	var sb strings.Builder
