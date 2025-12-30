@@ -37,14 +37,10 @@ const (
 )
 
 const (
-	actionTyping          = "typing"
-	actionUploadPhoto     = "upload_photo"
-	actionRecordVoice     = "record_voice"
-	actionUploadVoice     = "upload_voice"
-	actionUploadDocument  = "upload_document"
-	actionUploadVideo     = "upload_video"
-	actionRecordVideoNote = "record_video_note"
-	actionUploadVideoNote = "upload_video_note"
+	actionTyping         = "typing"
+	actionUploadPhoto    = "upload_photo"
+	actionRecordVoice    = "record_voice"
+	actionUploadDocument = "upload_document"
 )
 
 type subCommand string
@@ -1016,5 +1012,5 @@ func formatMemeCaption(meme model.RedditMeme) string {
 	if meme.Subreddit == "" {
 		return meme.Title
 	}
-	return fmt.Sprintf("%s\n\nr/%s", meme.Title, meme.Subreddit)
+	return fmt.Sprintf("r/%s: %s\n\n%s", meme.Subreddit, meme.Title, meme.URL)
 }
