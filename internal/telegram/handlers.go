@@ -1012,5 +1012,5 @@ func formatMemeCaption(meme model.RedditMeme) string {
 	if meme.Subreddit == "" {
 		return meme.Title
 	}
-	return fmt.Sprintf("r/%s: %s\n\n%s", meme.Subreddit, meme.Title, meme.URL)
+	return fmt.Sprintf("r/%s\n%s", meme.Subreddit, meme.Title)
 }
