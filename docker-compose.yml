@@ -19,8 +19,6 @@ services:
     <<: *bot-common
     image: ghcr.io/tkozakas/got:latest
     profiles: ["prod"]
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
 
   bot-dev:
     <<: *bot-common
@@ -56,17 +54,22 @@ services:
       - bot-network
     restart: unless-stopped
 
-  watchtower:
-    container_name: watchtower
-    image: containrrr/watchtower
+  webhook:
+    container_name: got-webhook
+    image: almir/webhook:latest
     profiles: ["prod"]
+    ports:
+      - "9000:9000"
     volumes:
+      - ./deploy/hooks.json:/etc/webhook/hooks.json:ro
+      - ./deploy/deploy.sh:/scripts/deploy.sh:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app:ro
     environment:
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_POLL_INTERVAL: "300"
-      WATCHTOWER_INCLUDE_STOPPED: "false"
-      WATCHTOWER_LABEL_ENABLE: "true"
+      - DEPLOY_TOKEN=${DEPLOY_TOKEN}
+    command: ["-verbose", "-hooks=/etc/webhook/hooks.json", "-hotreload"]
+    networks:
+      - bot-network
     restart: unless-stopped
 
 networks:
