@@ -54,24 +54,6 @@ services:
       - bot-network
     restart: unless-stopped
 
-  webhook:
-    container_name: got-webhook
-    image: almir/webhook:latest
-    profiles: ["prod"]
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./deploy/hooks.json:/etc/webhook/hooks.json:ro
-      - ./deploy/deploy.sh:/scripts/deploy.sh:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - .:/app:ro
-    environment:
-      - DEPLOY_TOKEN=${DEPLOY_TOKEN}
-    command: ["-verbose", "-hooks=/etc/webhook/hooks.json", "-hotreload"]
-    networks:
-      - bot-network
-    restart: unless-stopped
-
 networks:
   bot-network:
     driver: bridge
