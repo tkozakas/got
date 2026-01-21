@@ -112,6 +112,7 @@ func autoRouletteJob(svc *app.Service, client *telegram.Client, defaultT *i18n.T
 		"ru": i18n.New("ru"),
 		"lt": i18n.New("lt"),
 		"ja": i18n.New("ja"),
+		"be": i18n.New("be"),
 	}
 
 	return func(ctx context.Context) error {

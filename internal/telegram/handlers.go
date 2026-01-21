@@ -59,11 +59,11 @@ type BotHandlers struct {
 	translators map[string]*i18n.Translator
 }
 
-var supportedLanguages = []string{"en", "ru", "lt", "ja"}
+var supportedLanguages = []string{"en", "ru", "lt", "ja", "be"}
 
 func NewBotHandlers(client *Client, service *app.Service, gpt *groq.Client, cache *redis.Client, t *i18n.Translator, tts *tts.Client, cmds *config.CommandsConfig, adminPass string) *BotHandlers {
 	translators := make(map[string]*i18n.Translator)
-	for _, lang := range []string{"en", "ru", "lt", "ja"} {
+	for _, lang := range supportedLanguages {
 		translators[lang] = i18n.New(lang)
 	}
 
