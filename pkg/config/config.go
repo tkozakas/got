@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -29,14 +30,15 @@ const (
 )
 
 type Config struct {
-	BotToken  string
-	DBURL     string
-	GptKey    string
-	RedisAddr string
-	AdminPass string
-	Bot       BotConfig      `yaml:"bot"`
-	Schedule  ScheduleConfig `yaml:"schedule"`
-	Commands  CommandsConfig `yaml:"commands"`
+	BotToken         string
+	DBURL            string
+	GptKey           string
+	RedisAddr        string
+	AdminPass        string
+	Bot              BotConfig      `yaml:"bot"`
+	Schedule         ScheduleConfig `yaml:"schedule"`
+	Commands         CommandsConfig `yaml:"commands"`
+	DisabledCommands map[string]bool
 }
 
 type BotConfig struct {
@@ -133,6 +135,7 @@ func applyEnvOverrides(cfg *Config) {
 	}
 
 	applyCommandOverrides(cfg)
+	applyDisabledCommands(cfg)
 }
 
 func applyCommandOverrides(cfg *Config) {
@@ -181,4 +184,38 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func applyDisabledCommands(cfg *Config) {
+	cfg.DisabledCommands = make(map[string]bool)
+
+	disableEnvs := map[string]string{
+		"DISABLE_CMD_START":    cfg.Commands.Start,
+		"DISABLE_CMD_HELP":     cfg.Commands.Help,
+		"DISABLE_CMD_GPT":      cfg.Commands.Gpt,
+		"DISABLE_CMD_REMIND":   cfg.Commands.Remind,
+		"DISABLE_CMD_MEME":     cfg.Commands.Meme,
+		"DISABLE_CMD_STICKER":  cfg.Commands.Sticker,
+		"DISABLE_CMD_FACT":     cfg.Commands.Fact,
+		"DISABLE_CMD_ROULETTE": cfg.Commands.Roulette,
+		"DISABLE_CMD_TTS":      cfg.Commands.Tts,
+		"DISABLE_CMD_ADMIN":    cfg.Commands.Admin,
+		"DISABLE_CMD_LANG":     cfg.Commands.Lang,
+	}
+
+	for envKey, cmdName := range disableEnvs {
+		if isEnvTrue(envKey) {
+			cfg.DisabledCommands[cmdName] = true
+			slog.Info("Command disabled", "command", cmdName)
+		}
+	}
+}
+
+func isEnvTrue(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
+
+func (c *Config) IsDisabled(cmd string) bool {
+	return c.DisabledCommands[cmd]
 }

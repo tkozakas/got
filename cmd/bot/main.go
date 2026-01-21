@@ -60,24 +60,24 @@ func main() {
 	handlers := telegram.NewBotHandlers(client, svc, gptClient, redisClient, translator, ttsClient, &cfg.Commands, cfg.AdminPass)
 
 	cmds := &cfg.Commands
-	router.Register(cmds.Start, telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
-	router.Register(cmds.Help, telegram.WithRecover(telegram.WithLogging(handlers.HandleHelp)))
-	router.Register(cmds.Gpt, telegram.WithRecover(telegram.WithLogging(handlers.HandleGPT)))
-	router.Register(cmds.Remind, telegram.WithRecover(telegram.WithLogging(handlers.HandleRemind)))
-	router.Register(cmds.Meme, telegram.WithRecover(telegram.WithLogging(handlers.HandleMeme)))
-	router.Register(cmds.Sticker, telegram.WithRecover(telegram.WithLogging(handlers.HandleSticker)))
-	router.Register(cmds.Fact, telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
-	router.Register(cmds.Roulette, telegram.WithRecover(telegram.WithLogging(handlers.HandleRoulette)))
-	router.Register(cmds.Tts, telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
-	router.Register(cmds.Admin, telegram.WithRecover(telegram.WithLogging(handlers.HandleAdmin)))
-	router.Register(cmds.Lang, telegram.WithRecover(telegram.WithLogging(handlers.HandleLang)))
+	registerCommand(router, cfg, cmds.Start, telegram.WithRecover(telegram.WithLogging(handlers.HandleStart)))
+	registerCommand(router, cfg, cmds.Help, telegram.WithRecover(telegram.WithLogging(handlers.HandleHelp)))
+	registerCommand(router, cfg, cmds.Gpt, telegram.WithRecover(telegram.WithLogging(handlers.HandleGPT)))
+	registerCommand(router, cfg, cmds.Remind, telegram.WithRecover(telegram.WithLogging(handlers.HandleRemind)))
+	registerCommand(router, cfg, cmds.Meme, telegram.WithRecover(telegram.WithLogging(handlers.HandleMeme)))
+	registerCommand(router, cfg, cmds.Sticker, telegram.WithRecover(telegram.WithLogging(handlers.HandleSticker)))
+	registerCommand(router, cfg, cmds.Fact, telegram.WithRecover(telegram.WithLogging(handlers.HandleFact)))
+	registerCommand(router, cfg, cmds.Roulette, telegram.WithRecover(telegram.WithLogging(handlers.HandleRoulette)))
+	registerCommand(router, cfg, cmds.Tts, telegram.WithRecover(telegram.WithLogging(handlers.HandleTTS)))
+	registerCommand(router, cfg, cmds.Admin, telegram.WithRecover(telegram.WithLogging(handlers.HandleAdmin)))
+	registerCommand(router, cfg, cmds.Lang, telegram.WithRecover(telegram.WithLogging(handlers.HandleLang)))
 
 	autoRegister := telegram.NewAutoRegisterMiddleware(svc, router)
 	bot := telegram.NewBot(client, autoRegister)
 
 	sentences := telegram.NewSentenceProvider()
 
-	registerBotCommands(client, translator, &cfg.Commands)
+	registerBotCommands(client, cfg, translator, &cfg.Commands)
 	sched := startScheduler(cfg, svc, client, translator, sentences)
 	defer sched.Stop()
 
@@ -177,8 +177,15 @@ func checkReminders(ctx context.Context, svc *app.Service, client *telegram.Clie
 	}
 }
 
-func registerBotCommands(client *telegram.Client, t *i18n.Translator, cmds *config.CommandsConfig) {
-	commands := []telegram.BotCommand{
+func registerCommand(router *telegram.Router, cfg *config.Config, cmd string, handler telegram.HandlerFunc) {
+	if cfg.IsDisabled(cmd) {
+		return
+	}
+	router.Register(cmd, handler)
+}
+
+func registerBotCommands(client *telegram.Client, cfg *config.Config, t *i18n.Translator, cmds *config.CommandsConfig) {
+	allCommands := []telegram.BotCommand{
 		{Command: cmds.Start, Description: t.Get(i18n.KeyCmdStart)},
 		{Command: cmds.Help, Description: t.Get(i18n.KeyCmdHelp)},
 		{Command: cmds.Gpt, Description: t.Get(i18n.KeyCmdGpt)},
@@ -191,10 +198,17 @@ func registerBotCommands(client *telegram.Client, t *i18n.Translator, cmds *conf
 		{Command: cmds.Lang, Description: t.Get(i18n.KeyCmdLang)},
 	}
 
+	var commands []telegram.BotCommand
+	for _, cmd := range allCommands {
+		if !cfg.IsDisabled(cmd.Command) {
+			commands = append(commands, cmd)
+		}
+	}
+
 	if err := client.SetMyCommands(commands); err != nil {
 		slog.Error("Failed to register bot commands", "error", err)
 		return
 	}
 
-	slog.Info("Bot commands registered")
+	slog.Info("Bot commands registered", "count", len(commands))
 }
