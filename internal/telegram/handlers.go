@@ -532,7 +532,11 @@ func (h *BotHandlers) handleRouletteSpin(ctx context.Context, chatID int64, year
 	}
 
 	if winner != nil {
-		msg := fmt.Sprintf(t.Get(i18n.KeyRouletteWinnerExists), alias, h.formatUser(winner.User), winner.Score)
+		name := winner.User.Username
+		if name == "" {
+			name = fmt.Sprintf("User%d", winner.User.UserID)
+		}
+		msg := fmt.Sprintf(t.Get(i18n.KeyRouletteWinnerExists), alias, name, winner.Score)
 		return h.client.SendMessage(chatID, msg)
 	}
 
