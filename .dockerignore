@@ -1,0 +1,16 @@
+.env
+.git/
+.github/
+.gitignore
+.idea/
+.vscode/
+*.md
+*.exe
+*.test
+*.out
+coverage.out
+bin/
+dist/
+tmp/
+Taskfile.yml
+docker-compose.yml

@@ -1,0 +1,221 @@
+package config
+
+import (
+	"log/slog"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	defaultRedisAddr    = "localhost:6379"
+	defaultLanguage     = "en"
+	defaultConfigPath   = "config.yaml"
+	defaultWinnerReset  = "0 0 0 * * *"
+	defaultAutoRoulette = "0 0 11 * * *"
+
+	defaultCmdStart    = "start"
+	defaultCmdHelp     = "help"
+	defaultCmdGpt      = "gpt"
+	defaultCmdRemind   = "remind"
+	defaultCmdMeme     = "meme"
+	defaultCmdSticker  = "sticker"
+	defaultCmdFact     = "fact"
+	defaultCmdRoulette = "roulette"
+	defaultCmdTts      = "tts"
+	defaultCmdAdmin    = "admin"
+	defaultCmdLang     = "lang"
+)
+
+type Config struct {
+	BotToken         string
+	DBURL            string
+	GptKey           string
+	RedisAddr        string
+	AdminPass        string
+	Bot              BotConfig      `yaml:"bot"`
+	Schedule         ScheduleConfig `yaml:"schedule"`
+	Commands         CommandsConfig `yaml:"commands"`
+	DisabledCommands map[string]bool
+}
+
+type BotConfig struct {
+	Language string `yaml:"language"`
+}
+
+type ScheduleConfig struct {
+	WinnerReset  string `yaml:"winner_reset"`
+	AutoRoulette string `yaml:"auto_roulette"`
+}
+
+type CommandsConfig struct {
+	Start    string `yaml:"start"`
+	Help     string `yaml:"help"`
+	Gpt      string `yaml:"gpt"`
+	Remind   string `yaml:"remind"`
+	Meme     string `yaml:"meme"`
+	Sticker  string `yaml:"sticker"`
+	Fact     string `yaml:"fact"`
+	Roulette string `yaml:"roulette"`
+	Tts      string `yaml:"tts"`
+	Admin    string `yaml:"admin"`
+	Lang     string `yaml:"lang"`
+}
+
+func Load() *Config {
+	if err := godotenv.Load(); err != nil {
+		slog.Warn("No .env file found, relying on environment variables")
+	}
+
+	token := os.Getenv("BOT_TOKEN")
+	if token == "" {
+		slog.Error("BOT_TOKEN is required")
+		os.Exit(1)
+	}
+
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		slog.Error("DB_URL is required")
+		os.Exit(1)
+	}
+
+	cfg := &Config{
+		BotToken:  token,
+		DBURL:     dbURL,
+		GptKey:    os.Getenv("GROQ_API_KEY"),
+		RedisAddr: getEnvOrDefault("REDIS_ADDR", defaultRedisAddr),
+	}
+
+	loadYAMLConfig(cfg)
+	applyEnvOverrides(cfg)
+
+	return cfg
+}
+
+func loadYAMLConfig(cfg *Config) {
+	data, err := os.ReadFile(defaultConfigPath)
+	if err != nil {
+		slog.Warn("No config.yaml found, using defaults")
+		setDefaults(cfg)
+		return
+	}
+
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		slog.Error("Failed to parse config.yaml", "error", err)
+		setDefaults(cfg)
+	}
+}
+
+func applyEnvOverrides(cfg *Config) {
+	if lang := os.Getenv("BOT_LANGUAGE"); lang != "" {
+		cfg.Bot.Language = lang
+	}
+	if cfg.Bot.Language == "" {
+		cfg.Bot.Language = defaultLanguage
+	}
+
+	if schedule := os.Getenv("SCHEDULE_WINNER_RESET"); schedule != "" {
+		cfg.Schedule.WinnerReset = schedule
+	}
+	if cfg.Schedule.WinnerReset == "" {
+		cfg.Schedule.WinnerReset = defaultWinnerReset
+	}
+
+	if schedule := os.Getenv("SCHEDULE_AUTO_ROULETTE"); schedule != "" {
+		cfg.Schedule.AutoRoulette = schedule
+	}
+	if cfg.Schedule.AutoRoulette == "" {
+		cfg.Schedule.AutoRoulette = defaultAutoRoulette
+	}
+
+	if pass := os.Getenv("ADMIN_PASS"); pass != "" {
+		cfg.AdminPass = pass
+	}
+
+	applyCommandOverrides(cfg)
+	applyDisabledCommands(cfg)
+}
+
+func applyCommandOverrides(cfg *Config) {
+	cfg.Commands.Start = getEnvOrDefaultWithFallback("CMD_START", cfg.Commands.Start, defaultCmdStart)
+	cfg.Commands.Help = getEnvOrDefaultWithFallback("CMD_HELP", cfg.Commands.Help, defaultCmdHelp)
+	cfg.Commands.Gpt = getEnvOrDefaultWithFallback("CMD_GPT", cfg.Commands.Gpt, defaultCmdGpt)
+	cfg.Commands.Remind = getEnvOrDefaultWithFallback("CMD_REMIND", cfg.Commands.Remind, defaultCmdRemind)
+	cfg.Commands.Meme = getEnvOrDefaultWithFallback("CMD_MEME", cfg.Commands.Meme, defaultCmdMeme)
+	cfg.Commands.Sticker = getEnvOrDefaultWithFallback("CMD_STICKER", cfg.Commands.Sticker, defaultCmdSticker)
+	cfg.Commands.Fact = getEnvOrDefaultWithFallback("CMD_FACT", cfg.Commands.Fact, defaultCmdFact)
+	cfg.Commands.Roulette = getEnvOrDefaultWithFallback("CMD_ROULETTE", cfg.Commands.Roulette, defaultCmdRoulette)
+	cfg.Commands.Tts = getEnvOrDefaultWithFallback("CMD_TTS", cfg.Commands.Tts, defaultCmdTts)
+	cfg.Commands.Admin = getEnvOrDefaultWithFallback("CMD_ADMIN", cfg.Commands.Admin, defaultCmdAdmin)
+	cfg.Commands.Lang = getEnvOrDefaultWithFallback("CMD_LANG", cfg.Commands.Lang, defaultCmdLang)
+}
+
+func getEnvOrDefaultWithFallback(envKey, yamlValue, defaultValue string) string {
+	if env := os.Getenv(envKey); env != "" {
+		return env
+	}
+	if yamlValue != "" {
+		return yamlValue
+	}
+	return defaultValue
+}
+
+func setDefaults(cfg *Config) {
+	cfg.Bot.Language = defaultLanguage
+	cfg.Schedule.WinnerReset = defaultWinnerReset
+	cfg.Schedule.AutoRoulette = defaultAutoRoulette
+	cfg.Commands.Start = defaultCmdStart
+	cfg.Commands.Help = defaultCmdHelp
+	cfg.Commands.Gpt = defaultCmdGpt
+	cfg.Commands.Remind = defaultCmdRemind
+	cfg.Commands.Meme = defaultCmdMeme
+	cfg.Commands.Sticker = defaultCmdSticker
+	cfg.Commands.Fact = defaultCmdFact
+	cfg.Commands.Roulette = defaultCmdRoulette
+	cfg.Commands.Tts = defaultCmdTts
+	cfg.Commands.Admin = defaultCmdAdmin
+	cfg.Commands.Lang = defaultCmdLang
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func applyDisabledCommands(cfg *Config) {
+	cfg.DisabledCommands = make(map[string]bool)
+
+	disableEnvs := map[string]string{
+		"DISABLE_CMD_START":    cfg.Commands.Start,
+		"DISABLE_CMD_HELP":     cfg.Commands.Help,
+		"DISABLE_CMD_GPT":      cfg.Commands.Gpt,
+		"DISABLE_CMD_REMIND":   cfg.Commands.Remind,
+		"DISABLE_CMD_MEME":     cfg.Commands.Meme,
+		"DISABLE_CMD_STICKER":  cfg.Commands.Sticker,
+		"DISABLE_CMD_FACT":     cfg.Commands.Fact,
+		"DISABLE_CMD_ROULETTE": cfg.Commands.Roulette,
+		"DISABLE_CMD_TTS":      cfg.Commands.Tts,
+		"DISABLE_CMD_ADMIN":    cfg.Commands.Admin,
+		"DISABLE_CMD_LANG":     cfg.Commands.Lang,
+	}
+
+	for envKey, cmdName := range disableEnvs {
+		if isEnvTrue(envKey) {
+			cfg.DisabledCommands[cmdName] = true
+			slog.Info("Command disabled", "command", cmdName)
+		}
+	}
+}
+
+func isEnvTrue(key string) bool {
+	val := strings.ToLower(os.Getenv(key))
+	return val == "true" || val == "1" || val == "yes"
+}
+
+func (c *Config) IsDisabled(cmd string) bool {
+	return c.DisabledCommands[cmd]
+}
