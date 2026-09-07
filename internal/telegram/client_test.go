@@ -119,6 +119,7 @@ func newTestClient(serverURL string) *Client {
 	return &Client{
 		token:      testToken,
 		httpClient: http.DefaultClient,
+		pollClient: http.DefaultClient,
 		baseURL:    serverURL,
 	}
 }

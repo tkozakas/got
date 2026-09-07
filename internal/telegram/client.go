@@ -12,6 +12,8 @@ import (
 
 const (
 	defaultTimeout    = 30 * time.Second
+	pollTimeoutSec    = 60
+	pollClientTimeout = (pollTimeoutSec + 10) * time.Second
 	getUpdatesCMD     = "/getUpdates"
 	sendMessageCMD    = "/sendMessage"
 	sendPhotoCMD      = "/sendPhoto"
@@ -28,6 +30,7 @@ const (
 type Client struct {
 	token      string
 	httpClient *http.Client
+	pollClient *http.Client
 	baseURL    string
 }
 
@@ -73,14 +76,17 @@ func NewClient(token string) *Client {
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
+		pollClient: &http.Client{
+			Timeout: pollClientTimeout,
+		},
 		baseURL: "https://api.telegram.org/bot" + token,
 	}
 }
 
 func (c *Client) GetUpdates(offset int) ([]Update, error) {
-	url := fmt.Sprintf("%s%s?offset=%d&timeout=60", c.baseURL, getUpdatesCMD, offset)
+	url := fmt.Sprintf("%s%s?offset=%d&timeout=%d", c.baseURL, getUpdatesCMD, offset, pollTimeoutSec)
 
-	resp, err := c.httpClient.Get(url)
+	resp, err := c.pollClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
